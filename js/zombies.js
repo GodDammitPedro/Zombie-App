@@ -1,26 +1,29 @@
 /* Zombie types. Money and XP rewards are proportional to threat, and are
-   further scaled by map difficulty + wave number inside game.js. */
+   further scaled by map difficulty + wave number inside game.js.
+   `radius` is the PHYSICS radius and must stay under half a tile (16px) so
+   every zombie can pass tile centers next to walls; big zombies look big
+   via `drawScale`, which only affects rendering and hitbox. */
 
 var ZOMBIE_TYPES = {
   walker: {
-    name: 'Walker', hp: 42, speed: 44, dmg: 8, radius: 11,
-    money: 50, xp: 10, color: '#6fae5a', eye: '#dfffd0'
+    name: 'Walker', hp: 42, speed: 44, dmg: 8, radius: 11, drawScale: 1,
+    money: 50, xp: 5, color: '#6fae5a', eye: '#dfffd0'
   },
   runner: {
-    name: 'Runner', hp: 32, speed: 96, dmg: 7, radius: 10,
-    money: 75, xp: 16, color: '#c9c33d', eye: '#fff8c0'
+    name: 'Runner', hp: 32, speed: 96, dmg: 7, radius: 10, drawScale: 1,
+    money: 75, xp: 8, color: '#c9c33d', eye: '#fff8c0'
   },
   spitter: {
-    name: 'Spitter', hp: 65, speed: 56, dmg: 13, radius: 12,
-    money: 110, xp: 26, color: '#9a5fd0', eye: '#efd0ff'
+    name: 'Spitter', hp: 65, speed: 56, dmg: 13, radius: 12, drawScale: 1,
+    money: 110, xp: 13, color: '#9a5fd0', eye: '#efd0ff'
   },
   brute: {
-    name: 'Brute', hp: 170, speed: 33, dmg: 22, radius: 16,
-    money: 170, xp: 40, color: '#c46a31', eye: '#ffe0c0'
+    name: 'Brute', hp: 170, speed: 33, dmg: 22, radius: 14, drawScale: 1.2,
+    money: 170, xp: 20, color: '#c46a31', eye: '#ffe0c0'
   },
   boss: {
-    name: 'Abomination', hp: 700, speed: 38, dmg: 32, radius: 22,
-    money: 600, xp: 150, color: '#8a1c1c', eye: '#ff5050'
+    name: 'Abomination', hp: 700, speed: 38, dmg: 32, radius: 15, drawScale: 1.5,
+    money: 600, xp: 75, color: '#8a1c1c', eye: '#ff5050'
   }
 };
 
@@ -48,7 +51,13 @@ function buildWave(wave, difficulty) {
   return list;
 }
 
-/* HP multiplier applied to every zombie for a given wave/map. */
+/* Per-wave stat scaling applied to every zombie. */
 function waveHpScale(wave, difficulty) {
   return (1 + 0.10 * (wave - 1)) * Math.pow(difficulty, 0.65);
+}
+function waveSpeedScale(wave) {
+  return Math.min(1.55, 1 + 0.025 * (wave - 1));
+}
+function waveDmgScale(wave) {
+  return Math.min(3, 1 + 0.05 * (wave - 1));
 }
