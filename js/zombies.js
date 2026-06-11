@@ -7,23 +7,31 @@
 var ZOMBIE_TYPES = {
   walker: {
     name: 'Walker', hp: 42, speed: 44, dmg: 8, radius: 11, drawScale: 1,
-    money: 50, xp: 5, color: '#6fae5a', eye: '#dfffd0'
+    money: 50, xp: 1.25, color: '#6fae5a', eye: '#dfffd0'
   },
   runner: {
     name: 'Runner', hp: 32, speed: 96, dmg: 7, radius: 10, drawScale: 1,
-    money: 75, xp: 8, color: '#c9c33d', eye: '#fff8c0'
+    money: 75, xp: 2, color: '#c9c33d', eye: '#fff8c0'
   },
   spitter: {
     name: 'Spitter', hp: 65, speed: 56, dmg: 13, radius: 12, drawScale: 1,
-    money: 110, xp: 13, color: '#9a5fd0', eye: '#efd0ff'
+    money: 110, xp: 3.25, color: '#9a5fd0', eye: '#efd0ff'
   },
   brute: {
     name: 'Brute', hp: 170, speed: 33, dmg: 22, radius: 14, drawScale: 1.2,
-    money: 170, xp: 20, color: '#c46a31', eye: '#ffe0c0'
+    money: 170, xp: 5, color: '#c46a31', eye: '#ffe0c0'
+  },
+  ghost: {
+    /* Phases through walls. Untargetable while inside one (no line of
+       sight), so it must be killed in the open. Spawns from wave 11 on. */
+    name: 'Ghost', hp: 90, speed: 52, dmg: 16, radius: 11, drawScale: 1.05,
+    money: 220, xp: 6.5, color: '#a8cfde', eye: '#ffffff', ghost: true
   },
   boss: {
+    /* Periodically winds up and dashes at the player. First appears on
+       wave 10, then every 5th wave. */
     name: 'Abomination', hp: 700, speed: 38, dmg: 32, radius: 15, drawScale: 1.5,
-    money: 600, xp: 75, color: '#8a1c1c', eye: '#ff5050'
+    money: 600, xp: 18.75, color: '#8a1c1c', eye: '#ff5050'
   }
 };
 
@@ -43,8 +51,14 @@ function buildWave(wave, difficulty) {
     list.push(t);
   }
 
-  // a boss (or several, later) every 5th wave
-  if (wave % 5 === 0) {
+  // ghosts haunt the building from wave 11 onward
+  if (wave >= 11) {
+    var ghosts = Math.max(1, Math.round(count * Math.min(0.25, 0.06 + (wave - 10) * 0.015)));
+    for (var gi = 0; gi < ghosts && gi < list.length; gi++) list[list.length - 1 - gi] = 'ghost';
+  }
+
+  // the first boss arrives on wave 10, then every 5th wave after
+  if (wave >= 10 && wave % 5 === 0) {
     var bosses = 1 + Math.floor(wave / 12);
     for (var b = 0; b < bosses; b++) list.push('boss');
   }

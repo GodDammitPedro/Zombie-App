@@ -7,6 +7,8 @@
      A - J  purchasable doors (price in `doors`; doors span 2 tiles so every
             zombie type fits through)
      1 - 9  wall gun stations (weapon key in `guns`, price comes from WEAPONS)
+     U      weapon upgrade machine (5 levels; cost = 2x the gun's price,
+            doubling each level)
    Each map carries a render palette used by the baked map layer.
    Layouts are validated at load time by validateMaps() below. */
 
@@ -50,7 +52,7 @@ var MAPS = [
       '#.........#..........#.............#',
       '#Z........#..........#.............#',
       '#.........#Z.........#...........Z.#',
-      '############################5#######'
+      '###############U############5#######'
     ]
   },
   {
@@ -79,7 +81,7 @@ var MAPS = [
       '#..................P...................#',
       '#......................................#',
       '#......................................#',
-      '#####1######FF################GG########',
+      '#####1######FF###########U####GG########',
       '#..................#...................#',
       '#..................#...................#',
       '#..................4...................#',
@@ -118,7 +120,7 @@ var MAPS = [
       '#Z...................P....................Z#',
       '#..........................................#',
       '#..........................................#',
-      '#########EE##########5###########FF#########',
+      '#########EE##########5#####U#####FF#########',
       '#....................#.....................#',
       '#....................#.....................#',
       '#Z...................#....................Z#',
@@ -164,7 +166,7 @@ var MAPS = [
       '#.......#....................#......Z#',
       '#.......#....................#.......#',
       '#.......#..................Z.#.......#',
-      '############FF#####4#####GG###########',
+      '############FF#####4##U##GG###########',
       '#.................#..................#',
       '#.................#..................#',
       '#Z................H.................Z#',
@@ -205,7 +207,7 @@ var MAPS = [
       '#.............H..............I.............#',
       '#.............#..............#.............#',
       '#.............#..............#.............#',
-      '#######5#############JJ#############6#######',
+      '#######5######U######JJ#############6#######',
       '#..........................................#',
       '#Z........................................Z#',
       '#..........................................#',
@@ -225,7 +227,7 @@ function validateMaps() {
   var problems = [];
   MAPS.forEach(function (m) {
     var rows = m.layout, w = rows[0].length;
-    var pCount = 0, zCount = 0;
+    var pCount = 0, zCount = 0, uCount = 0;
     var lettersSeen = {}, gunsSeen = {};
 
     rows.forEach(function (row, y) {
@@ -233,11 +235,12 @@ function validateMaps() {
       for (var x = 0; x < row.length; x++) {
         var c = row[x];
         var border = (y === 0 || y === rows.length - 1 || x === 0 || x === row.length - 1);
-        if (border && c !== '#' && !(c >= '1' && c <= '9')) {
+        if (border && c !== '#' && c !== 'U' && !(c >= '1' && c <= '9')) {
           problems.push(m.id + ': border hole at ' + x + ',' + y + ' ("' + c + '")');
         }
         if (c === 'P') pCount++;
         else if (c === 'Z') zCount++;
+        else if (c === 'U') uCount++;
         else if (c >= 'A' && c <= 'J') {
           lettersSeen[c] = true;
           if (!m.doors[c]) problems.push(m.id + ': door ' + c + ' has no price');
@@ -253,6 +256,7 @@ function validateMaps() {
     });
 
     if (pCount !== 1) problems.push(m.id + ': expected 1 player start, found ' + pCount);
+    if (uCount !== 1) problems.push(m.id + ': expected 1 upgrade machine, found ' + uCount);
     if (zCount < 2) problems.push(m.id + ': needs at least 2 spawners');
     Object.keys(m.doors).forEach(function (L) {
       if (!lettersSeen[L]) problems.push(m.id + ': door price ' + L + ' unused in layout');

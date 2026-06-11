@@ -40,6 +40,7 @@ function Game(mapDef, canvas, callbacks) {
   this.grid = [];           // chars
   this.doors = {};          // letter -> {letter, cost, tiles:[], open}
   this.guns = [];           // {x, y, weapon, price}
+  this.machines = [];       // {x, y} weapon upgrade stations
   this.spawners = [];       // {x, y, active}
   this.playerStart = { x: 0, y: 0 };
 
@@ -57,6 +58,7 @@ function Game(mapDef, canvas, callbacks) {
         var wkey = mapDef.guns[c];
         this.guns.push({ x: x, y: y, weapon: wkey, price: Math.round(WEAPONS[wkey].price * this.perks.gunMul) });
       }
+      else if (c === 'U') this.machines.push({ x: x, y: y });
       row.push(c);
     }
     this.grid.push(row);
@@ -71,6 +73,8 @@ function Game(mapDef, canvas, callbacks) {
     maxHp: this.perks.maxHp,
     speed: 160 * this.perks.speedMul,
     weapon: WEAPONS[this.perks.startWeapon],
+    weaponKey: this.perks.startWeapon,
+    upgrades: {},     // weaponKey -> machine upgrade level (0-5), per run
     aim: 0,
     moveA: 0,         // facing of last movement, for feet animation
     walk: 0,          // walk cycle accumulator
@@ -102,6 +106,20 @@ function Game(mapDef, canvas, callbacks) {
   this.flow = null;          // BFS distance field toward player
   this.flowTimer = 0;
   this.time = 0;
+  this.growlT = 3;           // ambient zombie groan scheduler
+
+  // pre-rendered film grain tile, drawn as a repeating pattern each frame
+  this.grain = document.createElement('canvas');
+  this.grain.width = 160; this.grain.height = 160;
+  var gctx = this.grain.getContext('2d');
+  for (var gy = 0; gy < 160; gy += 2) {
+    for (var gx = 0; gx < 160; gx += 2) {
+      var l = Math.floor(Math.random() * 255);
+      gctx.fillStyle = 'rgba(' + l + ',' + l + ',' + l + ',' + (Math.random() * 0.5).toFixed(2) + ')';
+      gctx.fillRect(gx, gy, 2, 2);
+    }
+  }
+  this.corpses = [];         // baked into the map layer, re-stamped on rebuild
 
   this.cam = { x: this.player.x, y: this.player.y, zoom: 1.6 };
   this.over = false;
@@ -127,7 +145,7 @@ function Game(mapDef, canvas, callbacks) {
 Game.prototype.isSolidTile = function (tx, ty) {
   if (tx < 0 || ty < 0 || tx >= this.W || ty >= this.H) return true;
   var c = this.grid[ty][tx];
-  if (c === '#') return true;
+  if (c === '#' || c === 'U') return true;
   if (c >= '1' && c <= '9') return true;
   if (c >= 'A' && c <= 'J') return !this.doors[c].open;
   return false;
@@ -251,18 +269,26 @@ Game.prototype.startWave = function () {
 };
 
 Game.prototype.spawnZombie = function () {
-  var active = this.spawners.filter(function (s) { return s.active; });
-  if (!active.length) return;
-  // bias toward spawners closer to the player so action stays nearby
-  var p = this.player;
-  active.sort(function (a, b) {
-    var da = Math.hypot((a.x + .5) * TILE - p.x, (a.y + .5) * TILE - p.y);
-    var db = Math.hypot((b.x + .5) * TILE - p.x, (b.y + .5) * TILE - p.y);
-    return da - db;
-  });
-  var pick = active[Math.floor(Math.random() * Math.min(active.length, 3))];
   var typeKey = this.spawnQueue.shift();
   var t = ZOMBIE_TYPES[typeKey];
+  var p = this.player;
+  var pick;
+
+  if (t.ghost) {
+    // ghosts ignore locked rooms — they can rise from ANY window
+    pick = this.spawners[Math.floor(Math.random() * this.spawners.length)];
+    SFX.ghost();
+  } else {
+    var active = this.spawners.filter(function (s) { return s.active; });
+    if (!active.length) { this.spawnQueue.unshift(typeKey); return; }
+    // bias toward spawners closer to the player so action stays nearby
+    active.sort(function (a, b) {
+      var da = Math.hypot((a.x + .5) * TILE - p.x, (a.y + .5) * TILE - p.y);
+      var db = Math.hypot((b.x + .5) * TILE - p.x, (b.y + .5) * TILE - p.y);
+      return da - db;
+    });
+    pick = active[Math.floor(Math.random() * Math.min(active.length, 3))];
+  }
   var hpScale = waveHpScale(this.wave, this.map.difficulty);
   // jitter must keep the body clear of walls around the spawn tile
   var jit = Math.max(0, TILE / 2 - t.radius - 1);
@@ -281,8 +307,40 @@ Game.prototype.spawnZombie = function () {
     rise: 0.7,           // spawn-in animation, invulnerable-ish window
     wob: Math.random() * 6.28,
     stuckT: 0,
-    flash: 0
+    flash: 0,
+    ghost: !!t.ghost,
+    // boss dash ability
+    dashState: null,     // null | 'windup' | 'dash'
+    dashT: 0,
+    dashCd: 4 + Math.random() * 3,
+    dashDir: { x: 0, y: 0 },
+    dashHit: false
   });
+};
+
+/* Apply damage to the player, handling armor, Second Wind, and death. */
+Game.prototype.hurtPlayer = function (raw) {
+  var p = this.player;
+  p.hp -= raw * this.perks.dmgTakenMul;
+  p.sinceHurt = 0;
+  p.flash = 0.3;
+  this.shake = Math.max(this.shake, 0.25);
+  SFX.hurt();
+  if (p.hp > 0) return;
+  if (this.perks.revive && !p.reviveUsed) {
+    p.reviveUsed = true;
+    p.hp = p.maxHp * 0.5;
+    this.cb.onToast('SECOND WIND!');
+    // shove everything back
+    for (var k = 0; k < this.zombies.length; k++) {
+      var zk = this.zombies[k];
+      var a = Math.atan2(zk.y - p.y, zk.x - p.x);
+      this.moveCircle(zk, Math.cos(a) * 60, Math.sin(a) * 60);
+      zk.atkCd = 1.5;
+    }
+  } else {
+    this.gameOver();
+  }
 };
 
 Game.prototype.killZombie = function (z) {
@@ -297,8 +355,22 @@ Game.prototype.killZombie = function (z) {
   Save.addXp(xp);          // XP banks immediately — quitting never loses it
   this.kills++;
 
-  this.addFloat(z.x, z.y - z.r - 4, '+$' + money, '#f5c84c');
-  this.splatter(z.x, z.y, ZOMBIE_TYPES[z.type].color, z.type === 'boss' ? 26 : 12);
+  this.addFloat(z.x, z.y - z.hitR - 4, '+$' + money, '#f5c84c');
+  if (z.ghost) {
+    // ghosts dissipate: pale wisps, no blood, no corpse
+    for (var w = 0; w < 10; w++) {
+      var wa = Math.random() * 6.28;
+      this.particles.push({
+        x: z.x, y: z.y,
+        vx: Math.cos(wa) * 30, vy: Math.sin(wa) * 30 - 25,
+        life: 0.5 + Math.random() * 0.4, maxLife: 0.9,
+        size: 2 + Math.random() * 3, color: 'rgba(190,225,240,0.5)', type: 'wisp'
+      });
+    }
+  } else {
+    this.splatter(z.x, z.y, t.color, z.type === 'boss' ? 26 : 12);
+    this.stampCorpse(z);
+  }
   SFX.zdie();
   if (z.type === 'boss') this.shake = Math.max(this.shake, 0.5);
 };
@@ -358,6 +430,18 @@ Game.prototype.update = function (dt) {
     }
   }
 
+  // --- ambient groans from nearby zombies ---
+  this.growlT -= dt;
+  if (this.growlT <= 0) {
+    this.growlT = 2 + Math.random() * 3;
+    var nearest = Infinity;
+    for (var gz = 0; gz < this.zombies.length; gz++) {
+      var gd2 = Math.hypot(this.zombies[gz].x - p.x, this.zombies[gz].y - p.y);
+      if (gd2 < nearest) nearest = gd2;
+    }
+    if (nearest < 450) SFX.growl(Math.max(0.2, 1 - nearest / 480));
+  }
+
   // --- zombies ---
   for (var i = this.zombies.length - 1; i >= 0; i--) {
     var z = this.zombies[i];
@@ -368,36 +452,61 @@ Game.prototype.update = function (dt) {
     var distP = Math.hypot(p.x - z.x, p.y - z.y);
     var reach = p.r + z.hitR + 3;
 
+    // --- boss dash ability ---
+    if (z.type === 'boss') {
+      if (z.dashState === 'windup') {
+        z.dashT -= dt;
+        if (z.dashT <= 0) {
+          z.dashState = 'dash';
+          z.dashT = 0.5;
+          var dwd = distP || 1;
+          z.dashDir.x = (p.x - z.x) / dwd;
+          z.dashDir.y = (p.y - z.y) / dwd;
+          z.dashHit = false;
+        }
+        continue; // rooted while telegraphing
+      }
+      if (z.dashState === 'dash') {
+        z.dashT -= dt;
+        this.moveCircle(z, z.dashDir.x * 430 * dt, z.dashDir.y * 430 * dt);
+        this.depenetrate(z);
+        var dNow = Math.hypot(p.x - z.x, p.y - z.y);
+        if (!z.dashHit && dNow <= reach + 4) {
+          z.dashHit = true;
+          z.dashT = Math.min(z.dashT, 0.08);
+          this.hurtPlayer(z.dmg * 1.4);
+          if (this.over) return;
+        }
+        if (z.dashT <= 0) {
+          z.dashState = null;
+          z.dashCd = 5 + Math.random() * 4;
+        }
+        continue;
+      }
+      z.dashCd -= dt;
+      if (z.dashCd <= 0 && distP < 340 && distP > reach + 14 && this.hasLOS(z.x, z.y, p.x, p.y)) {
+        z.dashState = 'windup';
+        z.dashT = 0.65;
+        SFX.roar();
+        this.shake = Math.max(this.shake, 0.15);
+        continue;
+      }
+    }
+
     if (distP <= reach + 2) {
       // attack
       z.stuckT = 0;
       z.atkCd -= dt;
       if (z.atkCd <= 0) {
         z.atkCd = 0.85;
-        var dmg = z.dmg * this.perks.dmgTakenMul;
-        p.hp -= dmg;
-        p.sinceHurt = 0;
-        p.flash = 0.3;
-        this.shake = Math.max(this.shake, 0.25);
-        SFX.hurt();
-        if (p.hp <= 0) {
-          if (this.perks.revive && !p.reviveUsed) {
-            p.reviveUsed = true;
-            p.hp = p.maxHp * 0.5;
-            this.cb.onToast('SECOND WIND!');
-            // shove everything back
-            for (var k = 0; k < this.zombies.length; k++) {
-              var zk = this.zombies[k];
-              var a = Math.atan2(zk.y - p.y, zk.x - p.x);
-              this.moveCircle(zk, Math.cos(a) * 60, Math.sin(a) * 60);
-              zk.atkCd = 1.5;
-            }
-          } else {
-            this.gameOver();
-            return;
-          }
-        }
+        this.hurtPlayer(z.dmg);
+        if (this.over) return;
       }
+    } else if (z.ghost) {
+      // ghosts drift straight at the player, through anything
+      var gdd = distP || 1;
+      z.x += ((p.x - z.x) / gdd) * z.speed * dt;
+      z.y += ((p.y - z.y) / gdd) * z.speed * dt;
     } else {
       /* Steering. A wedged zombie (corner/doorway) trips stuckT, which
          forces strict flow-field navigation through tile centers until
@@ -496,9 +605,27 @@ Game.prototype.update = function (dt) {
     p.aim += da * Math.min(1, dt * 18);
 
     if (p.fireCd <= 0) {
-      p.fireCd = 1 / (w.rof * this.perks.rofMul);
+      var lvl = p.upgrades[p.weaponKey] || 0;
+      p.fireCd = 1 / (w.rof * this.perks.rofMul * (1 + 0.06 * lvl));
       p.muzzle = 0.06;
-      var dmgMul = this.perks.dmgMul * (w === WEAPONS.pistol ? this.perks.pistolDmgMul : 1);
+      var dmgMul = this.perks.dmgMul * (1 + 0.4 * lvl) *
+        (w === WEAPONS.pistol ? this.perks.pistolDmgMul : 1);
+
+      // shell casing + smoke puff
+      var perpA = ta + Math.PI / 2;
+      this.particles.push({
+        x: p.x + Math.cos(ta) * 6, y: p.y + Math.sin(ta) * 6,
+        vx: Math.cos(perpA) * (40 + Math.random() * 50), vy: Math.sin(perpA) * (40 + Math.random() * 50),
+        life: 0.5 + Math.random() * 0.3, maxLife: 0.8,
+        size: 1.4, color: '#d9b15c', type: 'shell'
+      });
+      this.particles.push({
+        x: p.x + Math.cos(ta) * (p.r + 10), y: p.y + Math.sin(ta) * (p.r + 10),
+        vx: Math.cos(ta) * 26, vy: Math.sin(ta) * 26,
+        life: 0.45, maxLife: 0.45,
+        size: 3 + Math.random() * 2, color: 'rgba(180,180,180,0.25)', type: 'smoke'
+      });
+
       for (var pe = 0; pe < w.pellets; pe++) {
         var ang = ta + (Math.random() - 0.5) * 2 * w.spread;
         this.bullets.push({
@@ -541,8 +668,7 @@ Game.prototype.update = function (dt) {
           zb.hp -= dealt;
           zb.flash = 0.08;
           bl.hit[zb.id] = true;
-          this.addFloat(zb.x, zb.y - zb.r - 6, Math.round(dealt) + (crit ? '!' : ''), crit ? '#ff6a4d' : '#ffffff');
-          this.splatter(zb.x, zb.y, ZOMBIE_TYPES[zb.type].color, 3);
+          this.splatter(zb.x, zb.y, ZOMBIE_TYPES[zb.type].color, crit ? 6 : 3);
           if (zb.hp <= 0) {
             this.killZombie(zb);
             this.zombies.splice(zi, 1);
@@ -612,8 +738,34 @@ Game.prototype.updateInteract = function () {
       else best = { kind: 'gun', gun: gun, label: 'BUY ' + w.name + '  $' + gun.price, afford: this.money >= gun.price };
     }
   }
+  for (var mi = 0; mi < this.machines.length; mi++) {
+    var mc = this.machines[mi];
+    var md = Math.hypot((mc.x + .5) * TILE - p.x, (mc.y + .5) * TILE - p.y);
+    if (md < bestD) {
+      bestD = md;
+      var lvl = p.upgrades[p.weaponKey] || 0;
+      if (lvl >= 5) {
+        best = { kind: 'maxed', label: p.weapon.name + '  FULLY UPGRADED', afford: false };
+      } else {
+        var cost = this.upgradeCost(p.weaponKey, lvl);
+        best = {
+          kind: 'machine',
+          cost: cost,
+          label: 'UPGRADE TO LV.' + (lvl + 1) + '  $' + cost,
+          afford: this.money >= cost
+        };
+      }
+    }
+  }
   this.interactTarget = best;
   this.cb.onInteract(best);
+};
+
+/* Upgrade pricing: starts at double the gun's purchase price and doubles
+   with each level. The free pistol upgrades off a $300 baseline. */
+Game.prototype.upgradeCost = function (weaponKey, lvl) {
+  var base = Math.max(WEAPONS[weaponKey].price, 300);
+  return base * Math.pow(2, lvl + 1);
 };
 
 Game.prototype.doInteract = function () {
@@ -632,8 +784,16 @@ Game.prototype.doInteract = function () {
     if (this.money < t.gun.price) { SFX.deny(); this.cb.onToast('Not enough money'); return; }
     this.money -= t.gun.price;
     this.player.weapon = WEAPONS[t.gun.weapon];
+    this.player.weaponKey = t.gun.weapon;
     SFX.buy();
     this.cb.onToast(WEAPONS[t.gun.weapon].name + ' equipped');
+  } else if (t.kind === 'machine') {
+    if (this.money < t.cost) { SFX.deny(); this.cb.onToast('Not enough money'); return; }
+    this.money -= t.cost;
+    var key = this.player.weaponKey;
+    this.player.upgrades[key] = (this.player.upgrades[key] || 0) + 1;
+    SFX.upgrade();
+    this.cb.onToast(this.player.weapon.name + ' upgraded to Lv.' + this.player.upgrades[key]);
   }
 };
 
@@ -843,8 +1003,58 @@ Game.prototype.buildMapLayer = function () {
     m.fillRect(GX + 23, GY + TILE / 2 - 4, 3, 2);             // sight
   }
 
-  // pass 4: persistent blood
+  // pass 4: upgrade machines (arcane workbench on the wall block)
+  for (var um = 0; um < this.machines.length; um++) {
+    var mc = this.machines[um];
+    var MX = mc.x * TILE, MY = mc.y * TILE;
+    m.fillStyle = '#141019';
+    m.fillRect(MX + 2, MY + 3, TILE - 4, TILE - 6);
+    m.strokeStyle = '#4a3a64';
+    m.lineWidth = 1.5;
+    m.strokeRect(MX + 3, MY + 4, TILE - 6, TILE - 8);
+    // screen
+    m.fillStyle = '#1d3a2a';
+    m.fillRect(MX + 6, MY + 7, TILE - 12, 8);
+    m.fillStyle = '#54d06a';
+    m.fillRect(MX + 8, MY + 9, 6, 1.5);
+    m.fillRect(MX + 8, MY + 12, 9, 1.5);
+    // anvil / cradle
+    m.fillStyle = '#3a3f45';
+    m.fillRect(MX + 7, MY + TILE - 11, TILE - 14, 5);
+    m.fillStyle = '#c9a04c';
+    m.fillRect(MX + TILE / 2 - 1.5, MY + TILE - 13, 3, 3);
+  }
+
+  // pass 5: corpses, then persistent blood
+  for (var cp = 0; cp < this.corpses.length; cp++) this.drawCorpse(this.corpses[cp]);
   for (var dcl = 0; dcl < this.decals.length; dcl++) this.stampDecal(this.decals[dcl]);
+};
+
+/* Bake a fallen zombie into the floor — bodies stay where they died. */
+Game.prototype.stampCorpse = function (z) {
+  if (this.corpses.length < 250) {
+    this.corpses.push({ x: z.x, y: z.y, r: z.hitR, color: ZOMBIE_TYPES[z.type].color, a: Math.random() * 6.28 });
+  }
+  this.drawCorpse(this.corpses[this.corpses.length - 1]);
+};
+
+Game.prototype.drawCorpse = function (c) {
+  var m = this.mapLayer.getContext('2d');
+  m.save();
+  m.translate(c.x, c.y);
+  m.rotate(c.a);
+  m.globalAlpha = 0.55;
+  m.fillStyle = shade(c.color, -0.45);
+  m.beginPath();
+  m.ellipse(0, 0, c.r * 1.15, c.r * 0.6, 0, 0, 6.29);
+  m.fill();
+  m.globalAlpha = 0.35;
+  m.fillStyle = shade(c.color, -0.2);
+  m.beginPath();
+  m.ellipse(-c.r * 0.2, -c.r * 0.1, c.r * 0.6, c.r * 0.4, 0, 0, 6.29);
+  m.fill();
+  m.restore();
+  m.globalAlpha = 1;
 };
 
 Game.prototype.stampDecal = function (d) {
@@ -943,6 +1153,26 @@ Game.prototype.render = function () {
     this.drawTag(ctx, (gn.x + 0.5) * TILE, gn.y * TILE - 8, '$' + gn.price, afford ? '#7ddc8e' : '#e0a08a');
   }
 
+  // --- upgrade machines: arcane glow + price for the held weapon ---
+  for (var mi2 = 0; mi2 < this.machines.length; mi2++) {
+    var mc2 = this.machines[mi2];
+    if (mc2.x < x0 - 1 || mc2.x > x1 + 1 || mc2.y < y0 - 1 || mc2.y > y1 + 1) continue;
+    var mcx = (mc2.x + 0.5) * TILE, mcy = (mc2.y + 0.5) * TILE;
+    ctx.globalAlpha = 0.16 + 0.1 * Math.sin(this.time * 2.2);
+    ctx.fillStyle = '#9a6cff';
+    ctx.beginPath();
+    ctx.arc(mcx, mcy, TILE * 0.8, 0, 6.29);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    var ulvl = p.upgrades[p.weaponKey] || 0;
+    if (ulvl >= 5) {
+      this.drawTag(ctx, mcx, mc2.y * TILE - 8, 'MAX', '#b48aff');
+    } else {
+      var ucost = this.upgradeCost(p.weaponKey, ulvl);
+      this.drawTag(ctx, mcx, mc2.y * TILE - 8, '$' + ucost, this.money >= ucost ? '#b48aff' : '#e0a08a');
+    }
+  }
+
   // --- zombies ---
   for (var zi2 = 0; zi2 < this.zombies.length; zi2++) {
     this.drawZombie(ctx, this.zombies[zi2]);
@@ -983,7 +1213,7 @@ Game.prototype.render = function () {
   ctx.globalAlpha = 1;
 
   // --- floating text ---
-  ctx.font = 'bold 10px sans-serif';
+  ctx.font = 'bold 9px sans-serif';
   for (var fi2 = 0; fi2 < this.floats.length; fi2++) {
     var fl = this.floats[fi2];
     ctx.globalAlpha = Math.min(1, fl.life * 2.5);
@@ -992,16 +1222,25 @@ Game.prototype.render = function () {
   }
   ctx.globalAlpha = 1;
 
-  // --- lighting: darkness falls off away from the player ---
+  // --- lighting: a warm pool around the player, darkness at the edges ---
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   var psx = vw / 2 + (p.x - camX) * scale;
   var psy = vh / 2 + (p.y - camY) * scale;
   var lr = Math.max(vw, vh);
-  var light = ctx.createRadialGradient(psx, psy, lr * 0.10, psx, psy, lr * 0.62);
-  light.addColorStop(0, 'rgba(4,6,8,0)');
-  light.addColorStop(0.55, 'rgba(4,6,8,0.18)');
-  light.addColorStop(1, 'rgba(4,6,8,0.62)');
+  var flicker = 1 + 0.015 * Math.sin(this.time * 9) + 0.01 * Math.sin(this.time * 23);
+  var warm = ctx.createRadialGradient(psx, psy, 0, psx, psy, lr * 0.18 * flicker);
+  warm.addColorStop(0, 'rgba(255,226,170,0.07)');
+  warm.addColorStop(1, 'rgba(255,226,170,0)');
+  ctx.fillStyle = warm;
+  ctx.fillRect(0, 0, vw, vh);
+  var light = ctx.createRadialGradient(psx, psy, lr * 0.09 * flicker, psx, psy, lr * 0.60);
+  light.addColorStop(0, 'rgba(3,5,8,0)');
+  light.addColorStop(0.5, 'rgba(3,5,8,0.24)');
+  light.addColorStop(1, 'rgba(3,5,8,0.74)');
   ctx.fillStyle = light;
+  ctx.fillRect(0, 0, vw, vh);
+  // cold desaturating grade
+  ctx.fillStyle = 'rgba(38,52,62,0.06)';
   ctx.fillRect(0, 0, vw, vh);
 
   // --- hurt vignette ---
@@ -1012,6 +1251,17 @@ Game.prototype.render = function () {
     grad.addColorStop(1, 'rgba(160,20,20,' + alpha + ')');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, vw, vh);
+  }
+
+  // --- film grain ---
+  if (!this.grainPat) this.grainPat = ctx.createPattern(this.grain, 'repeat');
+  if (this.grainPat) {
+    ctx.save();
+    ctx.globalAlpha = 0.045;
+    ctx.translate((Math.random() * 16 - 8) | 0, (Math.random() * 16 - 8) | 0);
+    ctx.fillStyle = this.grainPat;
+    ctx.fillRect(-16, -16, vw + 32, vh + 32);
+    ctx.restore();
   }
 };
 
@@ -1029,12 +1279,55 @@ Game.prototype.drawZombie = function (ctx, z) {
   var breathe = 1 + 0.05 * Math.sin(z.wob * 0.9);
   var zr = z.hitR * riseScale * breathe;
   var p = this.player;
+  var za = Math.atan2(p.y - z.y, p.x - z.x);
+
+  // --- ghost: translucent, no shadow, trailing wisps ---
+  if (z.ghost) {
+    var ga = (0.42 + 0.16 * Math.sin(this.time * 4 + z.id)) * riseScale;
+    ctx.globalAlpha = ga * 0.5;
+    ctx.fillStyle = '#cfe8f2';
+    // trailing tail away from its heading
+    for (var tw = 1; tw <= 3; tw++) {
+      ctx.beginPath();
+      ctx.arc(z.x - Math.cos(za) * tw * 6, z.y - Math.sin(za) * tw * 6 + Math.sin(this.time * 5 + tw) * 2,
+        zr * (1 - tw * 0.22), 0, 6.29);
+      ctx.fill();
+    }
+    ctx.globalAlpha = ga;
+    ctx.fillStyle = z.flash > 0 ? '#ffffff' : zt.color;
+    ctx.beginPath(); ctx.arc(z.x, z.y, zr, 0, 6.29); ctx.fill();
+    ctx.globalAlpha = Math.min(1, ga + 0.3);
+    ctx.fillStyle = zt.eye;
+    var gex = Math.cos(za) * zr * 0.4, gey = Math.sin(za) * zr * 0.4;
+    ctx.beginPath();
+    ctx.arc(z.x + gex - gey * 0.5, z.y + gey + gex * 0.5, zr * 0.15, 0, 6.29);
+    ctx.arc(z.x + gex + gey * 0.5, z.y + gey - gex * 0.5, zr * 0.15, 0, 6.29);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    if (z.hp < z.maxHp && z.rise <= 0) {
+      var gbw = z.hitR * 2;
+      ctx.fillStyle = 'rgba(0,0,0,0.65)';
+      ctx.fillRect(z.x - gbw / 2, z.y - z.hitR - 8, gbw, 3);
+      ctx.fillStyle = '#9fd4e8';
+      ctx.fillRect(z.x - gbw / 2, z.y - z.hitR - 8, gbw * Math.max(0, z.hp / z.maxHp), 3);
+    }
+    return;
+  }
 
   // shadow
   ctx.fillStyle = 'rgba(0,0,0,0.35)';
   ctx.beginPath(); ctx.ellipse(z.x, z.y + zr * 0.55, zr, zr * 0.45, 0, 0, 6.29); ctx.fill();
 
-  var za = Math.atan2(p.y - z.y, p.x - z.x);
+  // boss dash telegraph: expanding red ring while winding up
+  if (z.dashState === 'windup') {
+    var wt = 1 - z.dashT / 0.65;
+    ctx.strokeStyle = 'rgba(255,60,50,' + (0.25 + 0.55 * wt).toFixed(2) + ')';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(z.x, z.y, zr + 4 + wt * 10, 0, 6.29);
+    ctx.stroke();
+  }
+
   var bodyC = z.flash > 0 ? '#ffffff' : zt.color;
 
   // arms swing while shambling
