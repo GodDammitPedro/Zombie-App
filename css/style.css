@@ -53,6 +53,7 @@ html, body {
 .subtitle { color:#7d8f81; margin-bottom:18px; letter-spacing:2px; font-size:13px; }
 .menu-stats { margin-top:22px; font-size:13px; color:#7d8f81; text-align:center; line-height:1.7; }
 .menu-stats b { color:#54d06a; }
+.build-tag { margin-top:10px; font-size:10px; color:#44544a; letter-spacing:2px; }
 
 /* ---------- buttons ---------- */
 .btn {
