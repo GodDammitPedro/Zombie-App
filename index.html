@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0b0f0c">
+<title>Deadlight — Zombie Survival</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ============ MAIN MENU ============ -->
+<div id="screen-menu" class="screen active">
+  <div class="menu-inner">
+    <h1 class="title">DEAD<span>LIGHT</span></h1>
+    <p class="subtitle">Survive. Earn. Evolve.</p>
+    <button class="btn btn-big btn-primary" id="btn-play">PLAY</button>
+    <button class="btn btn-big" id="btn-skills">SKILL TREES</button>
+    <div class="menu-stats" id="menu-stats"></div>
+  </div>
+</div>
+
+<!-- ============ MAP SELECT ============ -->
+<div id="screen-maps" class="screen">
+  <div class="panel-header">
+    <button class="btn btn-back" data-back="screen-menu">&larr;</button>
+    <h2>SELECT MAP</h2>
+  </div>
+  <div class="map-list" id="map-list"></div>
+</div>
+
+<!-- ============ SKILL TREES ============ -->
+<div id="screen-skills" class="screen">
+  <div class="panel-header">
+    <button class="btn btn-back" data-back="screen-menu">&larr;</button>
+    <h2>SKILL TREES</h2>
+    <div class="xp-balance" id="xp-balance"></div>
+  </div>
+  <div class="skill-tabs" id="skill-tabs"></div>
+  <div class="skill-list" id="skill-list"></div>
+</div>
+
+<!-- ============ GAME ============ -->
+<div id="screen-game" class="screen">
+  <canvas id="game-canvas"></canvas>
+
+  <div id="hud">
+    <div class="hud-top">
+      <div class="hp-wrap">
+        <div class="hp-bar"><div class="hp-fill" id="hp-fill"></div></div>
+        <div class="hp-text" id="hp-text"></div>
+      </div>
+      <div class="hud-center">
+        <div class="wave-label" id="wave-label">WAVE 1</div>
+      </div>
+      <div class="hud-right">
+        <div class="money" id="money-label">$0</div>
+        <div class="xp" id="xp-label">0 XP</div>
+        <button class="btn btn-pause" id="btn-pause">II</button>
+      </div>
+    </div>
+
+    <div class="hud-bottom">
+      <div class="weapon-label" id="weapon-label">M1911</div>
+      <button class="btn btn-interact hidden" id="btn-interact">OPEN</button>
+    </div>
+
+    <div id="joystick" class="hidden">
+      <div id="joystick-base"></div>
+      <div id="joystick-nub"></div>
+    </div>
+
+    <div id="wave-banner" class="hidden"></div>
+    <div id="toast" class="hidden"></div>
+  </div>
+</div>
+
+<!-- ============ PAUSE ============ -->
+<div id="screen-pause" class="overlay">
+  <div class="overlay-card">
+    <h2>PAUSED</h2>
+    <button class="btn btn-big btn-primary" id="btn-resume">RESUME</button>
+    <button class="btn btn-big" id="btn-quit">QUIT TO MENU</button>
+    <p class="hint">XP earned is always banked — even if you quit.</p>
+  </div>
+</div>
+
+<!-- ============ GAME OVER ============ -->
+<div id="screen-gameover" class="overlay">
+  <div class="overlay-card">
+    <h2 class="death-title">YOU DIED</h2>
+    <div class="go-stats" id="go-stats"></div>
+    <button class="btn btn-big btn-primary" id="btn-retry">RETRY MAP</button>
+    <button class="btn btn-big" id="btn-go-skills">SPEND XP</button>
+    <button class="btn btn-big" id="btn-go-menu">MAIN MENU</button>
+  </div>
+</div>
+
+<script src="js/save.js"></script>
+<script src="js/sfx.js"></script>
+<script src="js/skills.js"></script>
+<script src="js/weapons.js"></script>
+<script src="js/zombies.js"></script>
+<script src="js/maps.js"></script>
+<script src="js/input.js"></script>
+<script src="js/game.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
