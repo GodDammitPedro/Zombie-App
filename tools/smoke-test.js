@@ -113,6 +113,78 @@ for (const mapDef of MAPS) {
   if (maxStuck > 5) { console.error(`  FAIL ${mapDef.id}: zombie stuck for ${maxStuck.toFixed(1)}s`); failures++; }
 }
 
+// ---- wave composition rules ----
+for (let i = 0; i < 80; i++) {
+  if (buildWave(5, 2).includes('boss')) { console.error('FAIL: boss before wave 10'); failures++; break; }
+  if (buildWave(9, 2).includes('boss')) { console.error('FAIL: boss on wave 9'); failures++; break; }
+  if (buildWave(10, 2).includes('ghost')) { console.error('FAIL: ghost on wave 10'); failures++; break; }
+}
+if (!buildWave(10, 1).includes('boss')) { console.error('FAIL: no boss on wave 10'); failures++; }
+if (!buildWave(15, 1).includes('boss')) { console.error('FAIL: no boss on wave 15'); failures++; }
+if (buildWave(11, 1).filter(t => t === 'ghost').length < 1) { console.error('FAIL: no ghost on wave 11'); failures++; }
+
+// ---- upgrade machine ----
+const gm = new Game(MAPS[0], canvasStub(), cb);
+const mach = gm.machines[0];
+if (!mach) { console.error('FAIL: house has no upgrade machine'); failures++; }
+else {
+  gm.player.x = (mach.x + 0.5) * TILE;
+  gm.player.y = (mach.y - 0.5) * TILE;   // stand on the floor tile above it
+  gm.money = 100000;
+  const startMoney = gm.money;
+  let spent = 0;
+  for (let u = 1; u <= 5; u++) {
+    gm.updateInteract();
+    if (!gm.interactTarget || gm.interactTarget.kind !== 'machine') {
+      console.error('FAIL: machine not interactable at level ' + (u - 1)); failures++; break;
+    }
+    spent += gm.interactTarget.cost;
+    gm.doInteract();
+    if ((gm.player.upgrades[gm.player.weaponKey] || 0) !== u) {
+      console.error('FAIL: upgrade level not ' + u); failures++; break;
+    }
+  }
+  // pistol baseline $300: 600+1200+2400+4800+9600 = 18600
+  if (spent !== 18600) { console.error('FAIL: upgrade cost ladder was $' + spent + ', expected $18600'); failures++; }
+  if (startMoney - gm.money !== spent) { console.error('FAIL: money not deducted correctly for upgrades'); failures++; }
+  gm.updateInteract();
+  if (!gm.interactTarget || gm.interactTarget.kind !== 'maxed') {
+    console.error('FAIL: machine should report maxed at level 5'); failures++;
+  }
+}
+
+// ---- boss dash + ghost movement (wave 10+ behaviors) ----
+{
+  const gb = new Game(MAPS[0], canvasStub(), cb);
+  gb.wave = 12;
+  gb.waveActive = true;
+  gb.spawnQueue = ['boss', 'ghost'];
+  gb.spawnZombie();
+  gb.spawnZombie();
+  const boss = gb.zombies.find(z => z.type === 'boss');
+  const ghost = gb.zombies.find(z => z.ghost);
+  if (!boss || !ghost) { console.error('FAIL: boss/ghost did not spawn'); failures++; }
+  else {
+    boss.rise = 0; ghost.rise = 0;
+    boss.x = gb.player.x + 100; boss.y = gb.player.y;   // open corridor, clear LOS
+    boss.dashCd = 0;
+    ghost.x = gb.player.x + 300; ghost.y = gb.player.y;
+    const gdist0 = Math.hypot(ghost.x - gb.player.x, ghost.y - gb.player.y);
+    inputVec = { x: 0, y: 0 };
+    gb.player.hp = gb.player.maxHp = 100000;
+    let dashed = false, hpBefore = gb.player.hp;
+    for (let f = 0; f < 600 && !gb.over; f++) {
+      gb.update(1 / 60);
+      gb.render();
+      if (boss.dashState === 'dash') dashed = true;
+    }
+    if (!dashed) { console.error('FAIL: boss never dashed'); failures++; }
+    if (gb.player.hp >= hpBefore) { console.error('FAIL: boss/ghost never damaged the player'); failures++; }
+    const gdist1 = Math.hypot(ghost.x - gb.player.x, ghost.y - gb.player.y);
+    if (ghost.hp > 0 && gdist1 > gdist0 - 50) { console.error('FAIL: ghost did not advance through the map'); failures++; }
+  }
+}
+
 // ---- skill tree persistence ----
 Save.addXp(5000);
 const before = Save.get().xpBank;

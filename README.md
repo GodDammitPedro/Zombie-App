@@ -31,12 +31,16 @@ npx serve .        # or: python3 -m http.server
 ## The loop
 
 - **Kill zombies → earn money + XP.** Rewards scale with zombie type, wave number, and map
-  difficulty. Walkers are cheap; Brutes, Spitters and the wave-5 Abomination boss pay much more.
+  difficulty. Walkers are cheap; Brutes, Spitters, wall-phasing Ghosts (wave 11+), and the
+  dashing Abomination boss (wave 10, then every 5th wave) pay much more.
 - **Money** buys locked doors (opening new rooms — and new zombie windows) and wall guns.
   You start every run with a basic M1911 pistol; gun prices scale with their power, up to the
   RG-9 Railgun.
-- **Money, guns, and opened rooms reset every run.**
-- **XP is banked permanently** (even if you quit mid-run) and is spent in the Skill Trees menu.
+- **The upgrade machine** (one per map) upgrades your held weapon up to 5 times. The first
+  level costs double the gun's purchase price and each level doubles again.
+- **Money, guns, upgrades, and opened rooms reset every run.**
+- **XP is banked permanently** (even if you quit mid-run) and is spent in the Skill Trees
+  menu. XP is scarce by design — skill unlocks are meant to be a long-term grind.
 
 ## Skill trees (persistent)
 

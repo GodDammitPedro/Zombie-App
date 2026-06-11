@@ -116,7 +116,8 @@ var UI = (function () {
       $('wave-label').textContent = g.waveActive
         ? 'WAVE ' + g.wave + ' — ' + (g.zombies.length + g.spawnQueue.length)
         : 'WAVE ' + (g.wave + 1) + ' IN ' + Math.ceil(g.intermission);
-      $('weapon-label').textContent = p.weapon.name;
+      var lvl = p.upgrades[p.weaponKey] || 0;
+      $('weapon-label').textContent = p.weapon.name + (lvl ? '  Lv.' + lvl : '');
     },
     onWaveBanner: function (text) {
       var b = $('wave-banner');
@@ -141,6 +142,7 @@ var UI = (function () {
     },
     onGameOver: function (stats) {
       stopLoop();
+      SFX.ambient(false);
       $('go-stats').innerHTML =
         'Survived to <b>Wave ' + stats.wave + '</b><br>' +
         'Kills: <b>' + stats.kills + '</b> &nbsp; Money earned: <b>$' + stats.moneyEarned + '</b><br>' +
@@ -156,6 +158,7 @@ var UI = (function () {
     show('screen-game');
     overlay('screen-pause', false);
     overlay('screen-gameover', false);
+    SFX.ambient(true);
     startLoop();
   }
 
@@ -183,6 +186,7 @@ var UI = (function () {
       Save.recordRun(game.map.id, game.wave);
       Save.addKills(game.kills);
     }
+    SFX.ambient(false);
     stopLoop();
     game = null;
     overlay('screen-pause', false);

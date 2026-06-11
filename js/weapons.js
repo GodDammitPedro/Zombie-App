@@ -36,6 +36,6 @@ var WEAPONS = {
     name: 'RG-9 Railgun', price: 4200,
     dmg: 150, rof: 0.95, range: 430, bulletSpeed: 1100,
     pellets: 1, spread: 0, pierce: 4,
-    color: '#b48aff', sfx: 'shotgun'
+    color: '#b48aff', sfx: 'rail'
   }
 };
