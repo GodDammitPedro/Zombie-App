@@ -170,19 +170,141 @@ else {
     boss.dashCd = 0;
     ghost.x = gb.player.x + 300; ghost.y = gb.player.y;
     const gdist0 = Math.hypot(ghost.x - gb.player.x, ghost.y - gb.player.y);
-    inputVec = { x: 0, y: 0 };
     gb.player.hp = gb.player.maxHp = 100000;
-    let dashed = false, hpBefore = gb.player.hp;
-    for (let f = 0; f < 600 && !gb.over; f++) {
+    inputVec = { x: 0, y: 0 };
+    // two opposite corners of the starting room (both open floor)
+    const spotA = { x: 2.5 * TILE, y: 4.5 * TILE };
+    const spotB = { x: 8.5 * TILE, y: 8.5 * TILE };
+    let dashes = 0, wasDashing = false, hpBefore = gb.player.hp;
+    for (let f = 0; f < 720 && !gb.over; f++) {   // 12 seconds
+      // emulate a kiting player: when the boss closes in, reposition to
+      // the far corner so dash range re-opens
+      const dB = Math.hypot(gb.player.x - boss.x, gb.player.y - boss.y);
+      if (boss.dashState === null && dB < 60) {
+        const dA = Math.hypot(spotA.x - boss.x, spotA.y - boss.y);
+        const dBB = Math.hypot(spotB.x - boss.x, spotB.y - boss.y);
+        const far = dA > dBB ? spotA : spotB;
+        gb.player.x = far.x; gb.player.y = far.y;
+      }
       gb.update(1 / 60);
       gb.render();
-      if (boss.dashState === 'dash') dashed = true;
+      const dashing = boss.dashState === 'dash';
+      if (dashing && !wasDashing) dashes++;
+      wasDashing = dashing;
     }
-    if (!dashed) { console.error('FAIL: boss never dashed'); failures++; }
+    // 2.5s cooldown + ~1.2s windup/dash means several dashes in 12s
+    if (dashes < 2) { console.error('FAIL: boss dashed ' + dashes + ' times in 12s, expected >= 2'); failures++; }
     if (gb.player.hp >= hpBefore) { console.error('FAIL: boss/ghost never damaged the player'); failures++; }
     const gdist1 = Math.hypot(ghost.x - gb.player.x, ghost.y - gb.player.y);
     if (ghost.hp > 0 && gdist1 > gdist0 - 50) { console.error('FAIL: ghost did not advance through the map'); failures++; }
   }
+}
+
+// ---- weapon range tiers + upgrade range bonus ----
+if (!(WEAPONS.pistol.range < WEAPONS.smg.range && WEAPONS.shotgun.range < WEAPONS.smg.range &&
+      WEAPONS.smg.range < WEAPONS.rifle.range && WEAPONS.rifle.range < WEAPONS.railgun.range)) {
+  console.error('FAIL: weapon range tiers out of order'); failures++;
+}
+{
+  const gr = new Game(MAPS[0], canvasStub(), cb);
+  const base = gr.weaponRange();
+  gr.player.upgrades[gr.player.weaponKey] = 5;
+  if (Math.abs(gr.weaponRange() - base * 1.4) > 0.01) {
+    console.error('FAIL: upgrade range bonus not +8%/level'); failures++;
+  }
+}
+
+// ---- fog of war: vision-limited and LOS-limited ----
+{
+  const gv = new Game(MAPS[0], canvasStub(), cb);
+  gv.computeVision();
+  const ptx = Math.floor(gv.player.x / TILE), pty = Math.floor(gv.player.y / TILE);
+  if (!gv.tileVisible(ptx, pty)) { console.error('FAIL: player tile not visible'); failures++; }
+  // far corner of the map can't possibly be seen from spawn
+  if (gv.tileVisible(gv.W - 2, gv.H - 2)) { console.error('FAIL: far corner visible through walls'); failures++; }
+  if (Skills.perks().vision !== 240) { console.error('FAIL: base vision should be 240'); failures++; }
+}
+
+// ---- player dash skill ----
+{
+  Save.addXp(5000);
+  Save.unlockSkill('dash');
+  const gd = new Game(MAPS[0], canvasStub(), cb);
+  if (!gd.perks.canDash) { console.error('FAIL: dash perk not applied'); failures++; }
+  inputVec = { x: 0, y: 0 };
+  const x0 = gd.player.x;
+  gd.player.moveA = 0; // face east down the open room
+  gd.tryDash();
+  if (gd.player.dashT <= 0) { console.error('FAIL: tryDash did not start a dash'); failures++; }
+  for (let f = 0; f < 40; f++) gd.update(1 / 60);
+  if (gd.player.x - x0 < 80) { console.error('FAIL: dash moved only ' + (gd.player.x - x0).toFixed(0) + 'px'); failures++; }
+  if (gd.player.dashCdT <= 0) { console.error('FAIL: dash cooldown not set'); failures++; }
+}
+
+// ---- LAN co-op: host + guest over an in-memory message bus ----
+{
+  const queue = [];
+  function fakeNet(id, isHost, other) {
+    const n = {
+      handlers: {},
+      id: () => id,
+      isHost: () => isHost,
+      peerName: (pid) => 'P' + pid,
+      on: (t, f) => { n.handlers[t] = f; },
+      send: (d) => queue.push({ to: other, d: JSON.parse(JSON.stringify(d)), from: id })
+    };
+    return n;
+  }
+  const netA = fakeNet(1, true, null);
+  const netB = fakeNet(2, false, null);
+  netA.send = (d) => queue.push({ to: netB, d: JSON.parse(JSON.stringify(d)), from: 1 });
+  netB.send = (d) => queue.push({ to: netA, d: JSON.parse(JSON.stringify(d)), from: 2 });
+  function flush() {
+    while (queue.length) {
+      const m = queue.shift();
+      const h = m.to.handlers[m.d.t];
+      if (h) h(m.d, m.from);
+    }
+  }
+
+  const host = new Game(MAPS[0], canvasStub(), cb, netA);
+  const guestG = new Game(MAPS[0], canvasStub(), cb, netB);
+  inputVec = { x: 0, y: 0 };
+
+  // simulate 30s of co-op
+  for (let f = 0; f < 30 * 60 && !host.over; f++) {
+    host.player.hp = host.player.maxHp;
+    guestG.player.hp = guestG.player.maxHp;
+    host.money += 10;
+    host.update(1 / 60);
+    guestG.update(1 / 60);
+    flush();
+  }
+
+  if (!host.remotePlayers[2]) { console.error('FAIL: host never saw the guest'); failures++; }
+  if (!guestG.remotePlayers[1]) { console.error('FAIL: guest never saw the host'); failures++; }
+  if (guestG.wave !== host.wave) { console.error('FAIL: wave desync host=' + host.wave + ' guest=' + guestG.wave); failures++; }
+  if (host.zombies.length && guestG.zombies.length === 0) { console.error('FAIL: zombies never synced to guest'); failures++; }
+  if (guestG.kills === 0 && guestG.runXp === 0) { console.error('FAIL: guest earned no individual kills/XP (both at spawn, should share kills)'); failures++; }
+  if (guestG.kills === host.kills && host.kills > 0 && guestG.money === host.money) {
+    console.error('WARN-ONLY: economies identical (suspicious but possible)');
+  }
+
+  // door purchase propagates both ways
+  const letter = Object.keys(host.doors)[0];
+  const dt0 = host.doors[letter].tiles[0];
+  host.money = 99999;
+  host.player.x = (dt0.x + 0.5) * TILE;
+  host.player.y = (dt0.y + 1.5) * TILE;
+  host.updateInteract();
+  if (host.interactTarget && host.interactTarget.kind === 'door') {
+    host.doInteract();
+    flush();
+    if (!guestG.doors[host.interactTarget ? letter : letter].open) {
+      console.error('FAIL: door purchase did not propagate to guest'); failures++;
+    }
+  }
+  console.log(`coop: host wave ${host.wave}, host kills ${host.kills}, guest kills ${guestG.kills}, guest xp ${guestG.runXp}, zombies synced ${guestG.zombies.length}/${host.zombies.length}`);
 }
 
 // ---- skill tree persistence ----

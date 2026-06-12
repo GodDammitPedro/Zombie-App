@@ -87,6 +87,7 @@ var Input = (function () {
     window.addEventListener('keydown', function (e) {
       keys[e.key.toLowerCase()] = true;
       if (e.key.toLowerCase() === 'e' && window.UI) UI.pressInteract();
+      if (e.key === ' ' && window.UI) UI.pressDash();
     });
     window.addEventListener('keyup', function (e) { keys[e.key.toLowerCase()] = false; });
   }

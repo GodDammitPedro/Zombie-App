@@ -123,6 +123,10 @@ var SFX = (function () {
     },
 
     // player / economy
+    dash: function () {
+      blast(0.18, 0.10, 'highpass', 260, 1500, 1, 0.2);
+      tone('sine', 220, 480, 0.15, 0.05, 0.15);
+    },
     hurt: function () {
       tone('square', 110, 55, 0.2, 0.15, 0.1);
       blast(0.1, 0.08, 'lowpass', 900, 200, 0.8, 0.1);

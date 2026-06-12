@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0b0f0c">
 <title>Deadlight — Zombie Survival</title>
-<link rel="stylesheet" href="css/style.css?v=3">
+<link rel="stylesheet" href="css/style.css?v=4">
 </head>
 <body>
 
@@ -17,6 +17,7 @@
     <h1 class="title">DEAD<span>LIGHT</span></h1>
     <p class="subtitle">Survive. Earn. Evolve.</p>
     <button class="btn btn-big btn-primary" id="btn-play">PLAY</button>
+    <button class="btn btn-big" id="btn-lan">LAN CO-OP</button>
     <button class="btn btn-big" id="btn-skills">SKILL TREES</button>
     <div class="menu-stats" id="menu-stats"></div>
     <div class="build-tag" id="build-tag"></div>
@@ -30,6 +31,15 @@
     <h2>SELECT MAP</h2>
   </div>
   <div class="map-list" id="map-list"></div>
+</div>
+
+<!-- ============ LAN LOBBY ============ -->
+<div id="screen-lan" class="screen">
+  <div class="panel-header">
+    <button class="btn btn-back" id="btn-lan-back">&larr;</button>
+    <h2>LAN CO-OP</h2>
+  </div>
+  <div class="lan-body" id="lan-body"></div>
 </div>
 
 <!-- ============ SKILL TREES ============ -->
@@ -65,6 +75,7 @@
 
     <div class="hud-bottom">
       <div class="weapon-label" id="weapon-label">M1911</div>
+      <button class="btn btn-dash hidden" id="btn-dash">DASH</button>
       <button class="btn btn-interact hidden" id="btn-interact">OPEN</button>
     </div>
 
@@ -99,15 +110,16 @@
   </div>
 </div>
 
-<script src="js/save.js?v=3"></script>
-<script src="js/sfx.js?v=3"></script>
-<script src="js/skills.js?v=3"></script>
-<script src="js/weapons.js?v=3"></script>
-<script src="js/zombies.js?v=3"></script>
-<script src="js/maps.js?v=3"></script>
-<script src="js/input.js?v=3"></script>
-<script src="js/game.js?v=3"></script>
-<script src="js/ui.js?v=3"></script>
-<script src="js/main.js?v=3"></script>
+<script src="js/save.js?v=4"></script>
+<script src="js/sfx.js?v=4"></script>
+<script src="js/skills.js?v=4"></script>
+<script src="js/weapons.js?v=4"></script>
+<script src="js/zombies.js?v=4"></script>
+<script src="js/maps.js?v=4"></script>
+<script src="js/net.js?v=4"></script>
+<script src="js/input.js?v=4"></script>
+<script src="js/game.js?v=4"></script>
+<script src="js/ui.js?v=4"></script>
+<script src="js/main.js?v=4"></script>
 </body>
 </html>

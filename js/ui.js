@@ -118,6 +118,12 @@ var UI = (function () {
         : 'WAVE ' + (g.wave + 1) + ' IN ' + Math.ceil(g.intermission);
       var lvl = p.upgrades[p.weaponKey] || 0;
       $('weapon-label').textContent = p.weapon.name + (lvl ? '  Lv.' + lvl : '');
+      if (g.perks.canDash) {
+        var db = $('btn-dash');
+        var cooling = p.dashCdT > 0;
+        db.classList.toggle('cooling', cooling);
+        db.textContent = cooling ? Math.ceil(p.dashCdT) + 's' : 'DASH';
+      }
     },
     onWaveBanner: function (text) {
       var b = $('wave-banner');
@@ -147,19 +153,98 @@ var UI = (function () {
         'Survived to <b>Wave ' + stats.wave + '</b><br>' +
         'Kills: <b>' + stats.kills + '</b> &nbsp; Money earned: <b>$' + stats.moneyEarned + '</b><br>' +
         '<span class="xpb">+' + stats.xp + ' XP banked</span>';
+      // a desynced solo retry makes no sense mid-co-op
+      $('btn-retry').classList.toggle('hidden', !!(game && game.net));
       overlay('screen-gameover', true);
     }
   };
 
-  function startGame(mapDef) {
+  function startGame(mapDef, useNet) {
     currentMap = mapDef;
     var canvas = $('game-canvas');
-    game = new Game(mapDef, canvas, callbacks);
+    game = new Game(mapDef, canvas, callbacks, useNet ? Net : null);
+    $('btn-dash').classList.toggle('hidden', !game.perks.canDash);
     show('screen-game');
     overlay('screen-pause', false);
     overlay('screen-gameover', false);
     SFX.ambient(true);
     startLoop();
+  }
+
+  // ---------------- LAN lobby ----------------
+  function renderLobby(message) {
+    var body = $('lan-body');
+    body.innerHTML = '';
+
+    if (message) {
+      var st = document.createElement('div');
+      st.className = 'lan-status';
+      st.textContent = message;
+      body.appendChild(st);
+      return;
+    }
+    if (!Net.active()) {
+      var st2 = document.createElement('div');
+      st2.className = 'lan-status';
+      st2.textContent = 'Connecting…';
+      body.appendChild(st2);
+      return;
+    }
+
+    var roster = document.createElement('div');
+    roster.className = 'lan-roster';
+    var me = document.createElement('div');
+    me.className = 'lan-player';
+    me.innerHTML = 'You' + (Net.isHost() ? '<span class="role">HOST</span>' : '');
+    roster.appendChild(me);
+    var peers = Net.peers();
+    for (var id in peers) {
+      var row = document.createElement('div');
+      row.className = 'lan-player';
+      row.textContent = peers[id];
+      roster.appendChild(row);
+    }
+    body.appendChild(roster);
+
+    var hint = document.createElement('div');
+    hint.className = 'lan-hint';
+    if (Net.isHost()) {
+      hint.textContent = Net.peerCount()
+        ? 'Pick a map to start the run for everyone. Money and XP are earned individually.'
+        : 'Waiting for other phones to open this address… you can also start solo.';
+      body.appendChild(hint);
+      var list = document.createElement('div');
+      list.className = 'lan-maps';
+      MAPS.forEach(function (m) {
+        var b = document.createElement('button');
+        b.className = 'btn';
+        b.textContent = m.name;
+        b.addEventListener('click', function () {
+          Net.send({ t: 'start', map: m.id });
+          startGame(m, true);
+        });
+        list.appendChild(b);
+      });
+      body.appendChild(list);
+    } else {
+      hint.textContent = 'Connected. Waiting for the host to pick a map…';
+      body.appendChild(hint);
+    }
+  }
+
+  function openLan() {
+    show('screen-lan');
+    renderLobby();
+    Net.onLobby(function () { renderLobby(); });
+    Net.connect('Player ' + (1 + Math.floor(Math.random() * 98)), function (err) {
+      if (err) { renderLobby(err); return; }
+      Net.on('start', function (d) {
+        var m = null;
+        MAPS.forEach(function (mm) { if (mm.id === d.map) m = mm; });
+        if (m && !Net.isHost()) startGame(m, true);
+      });
+      renderLobby();
+    });
   }
 
   function loop(t) {
@@ -189,6 +274,7 @@ var UI = (function () {
     SFX.ambient(false);
     stopLoop();
     game = null;
+    Net.disconnect();
     overlay('screen-pause', false);
     overlay('screen-gameover', false);
     renderMenu();
@@ -199,6 +285,12 @@ var UI = (function () {
   function init() {
     $('btn-play').addEventListener('click', function () { renderMaps(); show('screen-maps'); });
     $('btn-skills').addEventListener('click', function () { renderSkills(); show('screen-skills'); });
+    $('btn-lan').addEventListener('click', openLan);
+    $('btn-lan-back').addEventListener('click', function () {
+      Net.disconnect();
+      renderMenu();
+      show('screen-menu');
+    });
 
     document.querySelectorAll('.btn-back').forEach(function (b) {
       b.addEventListener('click', function () {
@@ -239,6 +331,14 @@ var UI = (function () {
     interactBtn.addEventListener('touchstart', press, { passive: false });
     interactBtn.addEventListener('mousedown', press);
 
+    var dashBtn = $('btn-dash');
+    var pressDash = function (e) {
+      e.preventDefault();
+      if (game) game.tryDash();
+    };
+    dashBtn.addEventListener('touchstart', pressDash, { passive: false });
+    dashBtn.addEventListener('mousedown', pressDash);
+
     window.addEventListener('resize', function () { if (game) game.resize(); });
 
     renderMenu();
@@ -246,6 +346,7 @@ var UI = (function () {
 
   return {
     init: init,
-    pressInteract: function () { if (game) game.doInteract(); }
+    pressInteract: function () { if (game) game.doInteract(); },
+    pressDash: function () { if (game) game.tryDash(); }
   };
 })();

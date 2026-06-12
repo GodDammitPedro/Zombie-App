@@ -196,6 +196,34 @@ html, body {
 }
 .btn-interact.cant { background:rgba(92,40,31,0.92); border-color:#8a3a2e; }
 
+.btn-dash {
+  pointer-events:auto;
+  width:66px; height:66px;
+  border-radius:50%;
+  font-size:12px;
+  background:rgba(36,52,82,0.92);
+  border-color:#3f7fb5;
+  align-self:flex-end;
+}
+.btn-dash.cooling { opacity:0.4; }
+
+/* LAN lobby */
+.lan-body {
+  flex:1; overflow-y:auto;
+  padding:18px 16px calc(24px + env(safe-area-inset-bottom));
+  display:flex; flex-direction:column; gap:12px;
+  touch-action:pan-y;
+}
+.lan-status { font-size:14px; color:#8da391; line-height:1.6; white-space:pre-wrap; }
+.lan-roster { display:flex; flex-direction:column; gap:8px; }
+.lan-player {
+  background:#121a14; border:1px solid #233527; border-radius:10px;
+  padding:11px 14px; font-size:14px; font-weight:700;
+}
+.lan-player .role { color:#54d06a; font-size:11px; margin-left:8px; }
+.lan-hint { font-size:12px; color:#7d8f81; line-height:1.6; }
+.lan-maps { display:flex; flex-direction:column; gap:8px; margin-top:6px; }
+
 /* joystick */
 #joystick { position:absolute; pointer-events:none; }
 #joystick-base {

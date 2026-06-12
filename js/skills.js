@@ -21,9 +21,12 @@ var SKILL_TREES = [
       { id: 'hp1',    name: 'Tough Skin I',     desc: '+25 max health',                          cost: 60,   req: null },
       { id: 'hp2',    name: 'Tough Skin II',    desc: '+25 max health',                          cost: 180,  req: 'hp1' },
       { id: 'spd1',   name: 'Fleet Foot I',     desc: '+8% move speed',                          cost: 140,  req: 'hp1' },
+      { id: 'vision1',name: 'Keen Eyes I',      desc: '+30% sight range in the dark',            cost: 220,  req: 'hp1' },
       { id: 'spd2',   name: 'Fleet Foot II',    desc: '+10% move speed',                         cost: 380,  req: 'spd1' },
       { id: 'regen',  name: 'Field Medic',      desc: 'Regenerate 2 HP/s after 5s without damage', cost: 420, req: 'hp2' },
+      { id: 'vision2',name: 'Keen Eyes II',     desc: '+40% sight range in the dark',            cost: 550,  req: 'vision1' },
       { id: 'hp3',    name: 'Tough Skin III',   desc: '+50 max health',                          cost: 650,  req: 'hp2' },
+      { id: 'dash',   name: 'Adrenal Rush',     desc: 'Unlock a dash move (2/3 the power of the boss\'s charge)', cost: 800, req: 'spd1' },
       { id: 'revive', name: 'Second Wind',      desc: 'Once per run, survive death with 50% HP', cost: 1000, req: 'hp3' }
     ]
   },
@@ -90,6 +93,8 @@ var Skills = (function () {
       speedMul:  1 + (h('spd1') ? .08 : 0) + (h('spd2') ? .10 : 0),
       regen:     h('regen') ? 2 : 0,
       revive:    h('revive'),
+      vision:    240 * (1 + (h('vision1') ? .30 : 0) + (h('vision2') ? .40 : 0)),
+      canDash:   h('dash'),
 
       moneyMul:  1 + (h('scav1') ? .10 : 0) + (h('scav2') ? .15 : 0) + (h('scav3') ? .25 : 0),
       xpMul:     1 + (h('xp1') ? .15 : 0) + (h('xp2') ? .25 : 0),

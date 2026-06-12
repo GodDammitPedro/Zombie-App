@@ -19,16 +19,155 @@ function shade(hex, f) { // f > 0 lighten, f < 0 darken
   return 'rgb(' + m(r) + ',' + m(g) + ',' + m(b) + ')';
 }
 
+/* Furniture painters. Each draws one 32px tile of a prop with a soft
+   drop shadow so it reads as an object standing on the floor. */
+function drawProp(m, type, X, Y, tx, ty) {
+  // shared ground shadow
+  m.fillStyle = 'rgba(0,0,0,0.30)';
+  m.beginPath();
+  m.ellipse(X + 16, Y + 22, 13, 7, 0, 0, 6.29);
+  m.fill();
+
+  switch (type) {
+    case 'sofa':
+      m.fillStyle = '#5c2f28';
+      m.fillRect(X + 2, Y + 6, 28, 20);
+      m.fillStyle = '#7a4036';
+      m.fillRect(X + 4, Y + 10, 24, 13);                 // seat
+      m.fillStyle = '#8a4c40';
+      m.fillRect(X + 4, Y + 10, 11, 13);                 // cushion split
+      m.fillStyle = '#4a251f';
+      m.fillRect(X + 2, Y + 6, 28, 5);                   // backrest
+      break;
+    case 'bed':
+      m.fillStyle = '#3a2c1c';
+      m.fillRect(X + 2, Y + 3, 28, 26);                  // frame
+      m.fillStyle = '#b8b2a4';
+      m.fillRect(X + 4, Y + 5, 24, 22);                  // mattress
+      m.fillStyle = hash2(tx, ty) < 0.5 ? '#5c6e8a' : '#6e5c8a';
+      m.fillRect(X + 4, Y + 14, 24, 13);                 // blanket
+      m.fillStyle = '#e8e4da';
+      m.fillRect(X + 7, Y + 7, 18, 6);                   // pillow
+      break;
+    case 'table':
+      m.fillStyle = '#4a3318';
+      m.fillRect(X + 4, Y + 6, 24, 19);
+      m.fillStyle = '#6b4c26';
+      m.fillRect(X + 5, Y + 7, 22, 16);
+      m.fillStyle = 'rgba(255,255,255,0.06)';
+      m.fillRect(X + 7, Y + 9, 18, 3);
+      break;
+    case 'desk':
+      m.fillStyle = '#3c4248';
+      m.fillRect(X + 3, Y + 6, 26, 19);
+      m.fillStyle = '#4e565e';
+      m.fillRect(X + 4, Y + 7, 24, 16);
+      m.fillStyle = '#10161a';
+      m.fillRect(X + 8, Y + 9, 10, 7);                   // monitor
+      m.fillStyle = '#3a6a4a';
+      m.fillRect(X + 9, Y + 10, 8, 5);                   // screen glow
+      m.fillStyle = '#23282c';
+      m.fillRect(X + 20, Y + 13, 6, 4);                  // keyboard
+      break;
+    case 'rack':
+      m.fillStyle = '#2c3236';
+      m.fillRect(X + 2, Y + 3, 28, 25);
+      m.fillStyle = '#43494e';
+      m.fillRect(X + 4, Y + 6, 24, 4);
+      m.fillRect(X + 4, Y + 14, 24, 4);
+      m.fillRect(X + 4, Y + 22, 24, 4);
+      m.fillStyle = hash2(tx + 5, ty) < 0.5 ? '#8a6a3a' : '#6a7a8a';
+      m.fillRect(X + 6, Y + 7, 7, 3);                    // boxes on shelves
+      m.fillRect(X + 16, Y + 15, 8, 3);
+      m.fillRect(X + 8, Y + 23, 6, 3);
+      break;
+    case 'crate':
+      m.fillStyle = '#6b4c26';
+      m.fillRect(X + 3, Y + 4, 26, 24);
+      m.fillStyle = '#7d5c32';
+      m.fillRect(X + 5, Y + 6, 22, 20);
+      m.strokeStyle = '#54401f';
+      m.lineWidth = 2;
+      m.strokeRect(X + 5, Y + 6, 22, 20);
+      m.beginPath();
+      m.moveTo(X + 5, Y + 6); m.lineTo(X + 27, Y + 26);
+      m.moveTo(X + 27, Y + 6); m.lineTo(X + 5, Y + 26);
+      m.stroke();
+      break;
+    case 'plant':
+      m.fillStyle = '#7a4a2c';
+      m.fillRect(X + 11, Y + 18, 10, 8);                 // pot
+      m.fillStyle = '#2c5c34';
+      m.beginPath(); m.arc(X + 16, Y + 13, 8, 0, 6.29); m.fill();
+      m.fillStyle = '#3d7a46';
+      m.beginPath(); m.arc(X + 12, Y + 10, 5, 0, 6.29); m.fill();
+      m.beginPath(); m.arc(X + 20, Y + 11, 5, 0, 6.29); m.fill();
+      break;
+    case 'vending':
+      m.fillStyle = '#7a1c1c';
+      m.fillRect(X + 4, Y + 2, 24, 27);
+      m.fillStyle = '#a82828';
+      m.fillRect(X + 6, Y + 4, 20, 23);
+      m.fillStyle = '#1a2228';
+      m.fillRect(X + 8, Y + 6, 12, 16);                  // glass front
+      m.fillStyle = '#e8c84c';
+      m.fillRect(X + 10, Y + 8, 3, 3); m.fillRect(X + 15, Y + 8, 3, 3);
+      m.fillRect(X + 10, Y + 13, 3, 3); m.fillRect(X + 15, Y + 13, 3, 3);
+      m.fillStyle = '#10161a';
+      m.fillRect(X + 22, Y + 8, 3, 12);                  // coin slot panel
+      break;
+    case 'gurney':
+      m.fillStyle = '#6a7178';
+      m.fillRect(X + 3, Y + 4, 26, 24);                  // frame/rails
+      m.fillStyle = '#dde2e4';
+      m.fillRect(X + 5, Y + 6, 22, 20);                  // sheet
+      m.fillStyle = '#c4ccd0';
+      m.fillRect(X + 5, Y + 15, 22, 11);                 // fold
+      m.fillStyle = '#b85050';
+      m.fillRect(X + 8, Y + 8, 7, 5);                    // old bloodstain
+      break;
+    case 'copier':
+      m.fillStyle = '#4e565e';
+      m.fillRect(X + 4, Y + 5, 24, 22);
+      m.fillStyle = '#5e676f';
+      m.fillRect(X + 6, Y + 7, 20, 8);                   // lid
+      m.fillStyle = '#54d06a';
+      m.fillRect(X + 7, Y + 16, 10, 2);                  // status light bar
+      m.fillStyle = '#23282c';
+      m.fillRect(X + 6, Y + 20, 20, 5);                  // paper tray
+      break;
+    case 'counter':
+      m.fillStyle = '#3a2c1c';
+      m.fillRect(X, Y + 6, TILE, 20);
+      m.fillStyle = '#5c4226';
+      m.fillRect(X, Y + 6, TILE, 14);
+      m.fillStyle = 'rgba(255,255,255,0.07)';
+      m.fillRect(X, Y + 7, TILE, 2);
+      break;
+    default:
+      m.fillStyle = '#555';
+      m.fillRect(X + 6, Y + 6, 20, 20);
+  }
+}
+
 var DEFAULT_PALETTE = {
   floorA: '#3a3f42', floorB: '#34393c', floorLine: 'rgba(0,0,0,0.3)',
   wallTop: '#5a6266', wallFace: '#3c4347', stain: 'rgba(10,10,12,0.45)'
 };
 
-function Game(mapDef, canvas, callbacks) {
+function Game(mapDef, canvas, callbacks, net) {
   this.map = mapDef;
   this.canvas = canvas;
   this.ctx = canvas.getContext('2d');
   this.cb = callbacks; // { onHud, onWaveBanner, onToast, onInteract, onGameOver }
+
+  // LAN co-op: host runs zombies/waves, guests mirror them. Solo acts as host.
+  this.net = net || null;
+  this.netHost = !this.net || this.net.isHost();
+  this.remotePlayers = {};  // pid -> {x,y,aim,hp,mhp,wk,name}
+  this.zMap = {};           // guest-side zombie copies by id
+  this.netT = 0;            // host snapshot timer
+  this.netPT = 0;           // player-state broadcast timer
 
   this.perks = Skills.perks();
   this.palette = mapDef.palette || DEFAULT_PALETTE;
@@ -83,8 +222,14 @@ function Game(mapDef, canvas, callbacks) {
     muzzle: 0,        // muzzle flash timer
     sinceHurt: 99,
     reviveUsed: false,
-    flash: 0
+    flash: 0,
+    dashT: 0,         // active dash time remaining
+    dashCdT: 0,       // dash cooldown remaining
+    dashDir: { x: 1, y: 0 }
   };
+  this.vision = this.perks.vision;
+  this.visSet = null;
+  this.visT = 0;
   this.money = this.perks.startMoney;
   this.runXp = 0;
   this.kills = 0;
@@ -103,7 +248,7 @@ function Game(mapDef, canvas, callbacks) {
   this.intermission = 2.5;   // short delay before wave 1
   this.waveActive = false;
 
-  this.flow = null;          // BFS distance field toward player
+  this.flows = null;         // per-survivor BFS distance fields
   this.flowTimer = 0;
   this.time = 0;
   this.growlT = 3;           // ambient zombie groan scheduler
@@ -138,11 +283,167 @@ function Game(mapDef, canvas, callbacks) {
   this.recomputeSpawners();
   this.buildMapLayer();
   this.resize();
+  if (this.net) this.bindNet();
 }
+
+var ZTYPE_KEYS = Object.keys(ZOMBIE_TYPES);
+
+// ---------------------------------------------------------------- network
+
+Game.prototype.bindNet = function () {
+  var g = this, n = this.net;
+
+  n.on('p', function (d, from) {
+    var rp = g.remotePlayers[from] || (g.remotePlayers[from] = {});
+    rp.x = d.x; rp.y = d.y; rp.aim = d.aim;
+    rp.hp = d.hp; rp.mhp = d.mhp; rp.wk = d.wk;
+    rp.name = n.peerName(from);
+  });
+
+  n.on('z', function (d) { if (!g.netHost) g.syncZombies(d); });
+
+  n.on('door', function (d) { g.openDoorRemote(d.letter); });
+
+  n.on('hit', function (d, from) {
+    if (!g.netHost) return;
+    for (var i = 0; i < g.zombies.length; i++) {
+      var z = g.zombies[i];
+      if (z.id !== d.zid) continue;
+      z.hp -= d.dmg;
+      z.flash = 0.08;
+      if (z.hp <= 0) {
+        g.killZombie(z, from);
+        g.zombies.splice(i, 1);
+      }
+      break;
+    }
+  });
+
+  n.on('kill', function (d) {
+    if (g.netHost) return;
+    var z = g.zMap[d.zid];
+    if (z) {
+      g.killFx(z);
+      delete g.zMap[d.zid];
+      var ix = g.zombies.indexOf(z);
+      if (ix >= 0) g.zombies.splice(ix, 1);
+    }
+    if (d.killer === n.id()) g.awardKill(d.m, d.xp, d.x, d.y);
+  });
+
+  n.on('dmg', function (d) { if (d.pid === n.id() && !g.over) g.hurtPlayer(d.amount); });
+
+  n.on('wave', function (d) {
+    if (g.netHost) return;
+    g.cb.onWaveBanner('WAVE ' + d.n);
+    SFX.wave();
+  });
+
+  n.on('wbonus', function (d) {
+    var b = Math.round(d.amount * g.perks.moneyMul);
+    g.money += b;
+    g.moneyEarned += b;
+    g.cb.onToast('Wave cleared! +$' + b);
+  });
+
+  n.on('over', function (d, from) {
+    var rp = g.remotePlayers[from];
+    if (rp) {
+      rp.hp = 0;
+      g.cb.onToast((rp.name || 'A survivor') + ' went down');
+    }
+  });
+
+  n.on('end', function () {
+    if (!g.netHost && !g.over) {
+      g.cb.onToast('The host fell — run over');
+      g.gameOver();
+    }
+  });
+
+  n.on('peer-left', function (id) { delete g.remotePlayers[id]; });
+
+  n.on('disconnect', function () {
+    if (g.over) return;
+    g.cb.onToast('Connection lost');
+    if (!g.netHost) g.gameOver();
+  });
+};
+
+/* Guest side: rebuild the zombie list from the host's compact snapshot. */
+Game.prototype.syncZombies = function (d) {
+  this.wave = d.wave;
+  this.waveActive = d.wa;
+  this.intermission = d.inter;
+  this.spawnQueue.length = d.q;
+  var seen = {};
+  for (var i = 0; i < d.zs.length; i++) {
+    var s = d.zs[i]; // [id, typeIdx, x, y, hpFrac, rising, dashState]
+    var id = s[0];
+    seen[id] = true;
+    var z = this.zMap[id];
+    if (!z) {
+      var typeKey = ZTYPE_KEYS[s[1]] || 'walker';
+      var t = ZOMBIE_TYPES[typeKey];
+      z = {
+        id: id, type: typeKey,
+        x: s[2], y: s[3], tx: s[2], ty: s[3],
+        r: t.radius, hitR: t.radius * t.drawScale,
+        hp: s[4], maxHp: 100,
+        wob: Math.random() * 6.28,
+        rise: s[5] ? 0.7 : 0,
+        flash: 0, stuckT: 0, atkCd: 0,
+        ghost: !!t.ghost,
+        dashState: null, dashT: 0, dashCd: 0,
+        dashDir: { x: 0, y: 0 }, dashHit: false,
+        speed: t.speed, dmg: t.dmg
+      };
+      this.zombies.push(z);
+      this.zMap[id] = z;
+    } else {
+      z.tx = s[2]; z.ty = s[3];
+      z.hp = s[4];
+    }
+    z.dashState = s[6] === 1 ? 'windup' : (s[6] === 2 ? 'dash' : null);
+    if (z.dashState === 'windup') z.dashT = 0.4;
+  }
+  for (var id2 in this.zMap) {
+    if (!seen[id2]) {
+      var gone = this.zMap[id2];
+      var ix = this.zombies.indexOf(gone);
+      if (ix >= 0) this.zombies.splice(ix, 1);
+      delete this.zMap[id2];
+    }
+  }
+};
+
+Game.prototype.openDoorRemote = function (letter) {
+  var d = this.doors[letter];
+  if (!d || d.open) return;
+  d.open = true;
+  this.recomputeSpawners();
+  if (this.netHost) this.computeFlows();
+  this.buildMapLayer();
+  SFX.door();
+  this.cb.onToast('Area unlocked');
+};
 
 // ---------------------------------------------------------------- helpers
 
+/* Movement solidity: walls, racks, machines, closed doors AND furniture. */
 Game.prototype.isSolidTile = function (tx, ty) {
+  if (tx < 0 || ty < 0 || tx >= this.W || ty >= this.H) return true;
+  var c = this.grid[ty][tx];
+  if (c === '#' || c === 'U') return true;
+  if (c >= '1' && c <= '9') return true;
+  if (c >= 'a' && c <= 'z') return true;   // furniture
+  if (c >= 'A' && c <= 'J') return !this.doors[c].open;
+  return false;
+};
+
+/* Sight/bullet solidity: furniture is waist-high — you can see and shoot
+   over it, you just can't walk through it. */
+Game.prototype.blocksSight = function (tx, ty) {
   if (tx < 0 || ty < 0 || tx >= this.W || ty >= this.H) return true;
   var c = this.grid[ty][tx];
   if (c === '#' || c === 'U') return true;
@@ -206,9 +507,44 @@ Game.prototype.hasLOS = function (x0, y0, x1, y1) {
   var steps = Math.ceil(dist / 10);
   for (var i = 1; i < steps; i++) {
     var t = i / steps;
-    if (this.isSolidTile(Math.floor((x0 + dx * t) / TILE), Math.floor((y0 + dy * t) / TILE))) return false;
+    if (this.blocksSight(Math.floor((x0 + dx * t) / TILE), Math.floor((y0 + dy * t) / TILE))) return false;
   }
   return true;
+};
+
+/* Effective weapon range: tiered base range + 8% per machine upgrade. */
+Game.prototype.weaponRange = function () {
+  var p = this.player;
+  return p.weapon.range * (1 + 0.08 * (p.upgrades[p.weaponKey] || 0));
+};
+
+/* Per-tile fog of war: a tile is visible if it's within vision range and
+   has direct line of sight from the player. Recomputed on a short timer. */
+Game.prototype.computeVision = function () {
+  var W = this.W, H = this.H, p = this.player;
+  if (!this.visSet) this.visSet = new Uint8Array(W * H);
+  var vis = this.visSet;
+  vis.fill(0);
+  var R = this.vision;
+  var ptx = Math.floor(p.x / TILE), pty = Math.floor(p.y / TILE);
+  var tR = Math.ceil(R / TILE) + 1;
+  for (var ty = Math.max(0, pty - tR); ty <= Math.min(H - 1, pty + tR); ty++) {
+    for (var tx = Math.max(0, ptx - tR); tx <= Math.min(W - 1, ptx + tR); tx++) {
+      var cx = (tx + 0.5) * TILE, cy = (ty + 0.5) * TILE;
+      var d = Math.hypot(cx - p.x, cy - p.y);
+      if (d > R + TILE * 0.5) continue;
+      if (d < TILE || this.hasLOS(p.x, p.y, cx, cy)) vis[tx + ty * W] = 1;
+    }
+  }
+};
+
+Game.prototype.tileVisible = function (tx, ty) {
+  if (!this.visSet || tx < 0 || ty < 0 || tx >= this.W || ty >= this.H) return false;
+  return !!this.visSet[tx + ty * this.W];
+};
+
+Game.prototype.posVisible = function (x, y) {
+  return this.tileVisible(Math.floor(x / TILE), Math.floor(y / TILE));
 };
 
 /* Spawners activate when their window becomes reachable from the player
@@ -235,12 +571,11 @@ Game.prototype.recomputeSpawners = function () {
   }
 };
 
-/* BFS distance field from the player's tile — zombies descend the gradient. */
-Game.prototype.computeFlow = function () {
+/* BFS distance field from a tile — zombies descend the gradient. */
+Game.prototype.bfsFrom = function (px, py) {
   var W = this.W, H = this.H;
   var flow = new Array(W * H).fill(-1);
-  var px = Math.floor(this.player.x / TILE), py = Math.floor(this.player.y / TILE);
-  if (px < 0 || py < 0 || px >= W || py >= H) return;
+  if (px < 0 || py < 0 || px >= W || py >= H) return flow;
   var q = [px + py * W];
   flow[px + py * W] = 0;
   var head = 0;
@@ -254,7 +589,39 @@ Game.prototype.computeFlow = function () {
     if (cy > 0 && flow[n = idx - W] === -1 && !this.isSolidTile(cx, cy - 1)) { flow[n] = d; q.push(n); }
     if (cy < H - 1 && flow[n = idx + W] === -1 && !this.isSolidTile(cx, cy + 1)) { flow[n] = d; q.push(n); }
   }
-  this.flow = flow;
+  return flow;
+};
+
+/* One flow field per living survivor (just "me" in solo). */
+Game.prototype.computeFlows = function () {
+  this.flows = {
+    me: this.bfsFrom(Math.floor(this.player.x / TILE), Math.floor(this.player.y / TILE))
+  };
+  if (this.net && this.netHost) {
+    for (var pid in this.remotePlayers) {
+      var rp = this.remotePlayers[pid];
+      if (rp.hp > 0) this.flows[pid] = this.bfsFrom(Math.floor(rp.x / TILE), Math.floor(rp.y / TILE));
+    }
+  }
+};
+
+/* All living survivors a zombie may hunt. */
+Game.prototype.aliveTargets = function () {
+  var list = [];
+  if (this.player.hp > 0) list.push({ x: this.player.x, y: this.player.y, pid: 'me', local: true });
+  if (this.net && this.netHost) {
+    for (var pid in this.remotePlayers) {
+      var rp = this.remotePlayers[pid];
+      if (rp.hp > 0) list.push({ x: rp.x, y: rp.y, pid: pid, local: false });
+    }
+  }
+  return list;
+};
+
+/* Route zombie damage to whichever survivor was hit. */
+Game.prototype.dealPlayerDamage = function (tgt, amount) {
+  if (tgt.local) this.hurtPlayer(amount);
+  else if (this.net) this.net.send({ t: 'dmg', pid: tgt.pid, amount: Math.round(amount) });
 };
 
 // ---------------------------------------------------------------- waves
@@ -266,6 +633,7 @@ Game.prototype.startWave = function () {
   this.spawnTimer = 0.5;
   this.cb.onWaveBanner('WAVE ' + this.wave);
   SFX.wave();
+  if (this.net && this.netHost) this.net.send({ t: 'wave', n: this.wave });
 };
 
 Game.prototype.spawnZombie = function () {
@@ -309,13 +677,34 @@ Game.prototype.spawnZombie = function () {
     stuckT: 0,
     flash: 0,
     ghost: !!t.ghost,
-    // boss dash ability
+    // boss dash ability: fires every 2.5s once off cooldown
     dashState: null,     // null | 'windup' | 'dash'
     dashT: 0,
-    dashCd: 4 + Math.random() * 3,
+    dashCd: 2.5,
     dashDir: { x: 0, y: 0 },
     dashHit: false
   });
+};
+
+/* Player dash (Adrenal Rush skill): 2/3 of the boss's 430px/s charge. */
+var PLAYER_DASH_SPEED = 287;
+
+Game.prototype.tryDash = function () {
+  var p = this.player;
+  if (!this.perks.canDash || this.over || this.paused) return;
+  if (p.dashT > 0 || p.dashCdT > 0) return;
+  var v = Input.vec();
+  var len = Math.hypot(v.x, v.y);
+  if (len > 0.05) {
+    p.dashDir.x = v.x / len;
+    p.dashDir.y = v.y / len;
+  } else {
+    p.dashDir.x = Math.cos(p.moveA);
+    p.dashDir.y = Math.sin(p.moveA);
+  }
+  p.dashT = 0.45;
+  p.dashCdT = 4;
+  SFX.dash();
 };
 
 /* Apply damage to the player, handling armor, Second Wind, and death. */
@@ -343,19 +732,30 @@ Game.prototype.hurtPlayer = function (raw) {
   }
 };
 
-Game.prototype.killZombie = function (z) {
+/* Unmultiplied reward for a kill — each player applies their own perks. */
+Game.prototype.rewardBase = function (z) {
   var t = ZOMBIE_TYPES[z.type];
   var waveBonus = 1 + 0.04 * (this.wave - 1);
-  var money = Math.round(t.money * this.map.difficulty * waveBonus * this.perks.moneyMul);
-  var xp = Math.round(t.xp * this.map.difficulty * waveBonus * this.perks.xpMul);
+  return {
+    money: t.money * this.map.difficulty * waveBonus,
+    xp: t.xp * this.map.difficulty * waveBonus
+  };
+};
 
+/* Credit a kill to THIS player (perks applied here, money/XP individual). */
+Game.prototype.awardKill = function (baseMoney, baseXp, x, y) {
+  var money = Math.round(baseMoney * this.perks.moneyMul);
+  var xp = Math.round(baseXp * this.perks.xpMul);
   this.money += money;
   this.moneyEarned += money;
   this.runXp += xp;
   Save.addXp(xp);          // XP banks immediately — quitting never loses it
   this.kills++;
+  this.addFloat(x, y - 14, '+$' + money, '#f5c84c');
+};
 
-  this.addFloat(z.x, z.y - z.hitR - 4, '+$' + money, '#f5c84c');
+/* Death effects only — no rewards. */
+Game.prototype.killFx = function (z) {
   if (z.ghost) {
     // ghosts dissipate: pale wisps, no blood, no corpse
     for (var w = 0; w < 10; w++) {
@@ -368,11 +768,25 @@ Game.prototype.killZombie = function (z) {
       });
     }
   } else {
-    this.splatter(z.x, z.y, t.color, z.type === 'boss' ? 26 : 12);
+    this.splatter(z.x, z.y, ZOMBIE_TYPES[z.type].color, z.type === 'boss' ? 26 : 12);
     this.stampCorpse(z);
   }
   SFX.zdie();
   if (z.type === 'boss') this.shake = Math.max(this.shake, 0.5);
+};
+
+/* Host/solo: a zombie died. killerId is 'me' or a peer id. */
+Game.prototype.killZombie = function (z, killerId) {
+  var base = this.rewardBase(z);
+  if (!killerId || killerId === 'me') this.awardKill(base.money, base.xp, z.x, z.y);
+  this.killFx(z);
+  if (this.net && this.netHost) {
+    this.net.send({
+      t: 'kill', zid: z.id, x: Math.round(z.x), y: Math.round(z.y),
+      killer: (!killerId || killerId === 'me') ? this.net.id() : killerId,
+      m: Math.round(base.money), xp: Math.round(base.xp)
+    });
+  }
 };
 
 // ---------------------------------------------------------------- update
@@ -382,16 +796,31 @@ Game.prototype.update = function (dt) {
   this.time += dt;
   var p = this.player;
 
-  // --- player movement ---
-  var v = Input.vec();
-  var moving = Math.hypot(v.x, v.y) > 0.05;
-  p.moving = moving;
-  if (moving) {
-    p.moveA = Math.atan2(v.y, v.x);
-    p.walk += p.speed * dt;
+  // --- player movement (dash overrides normal input) ---
+  if (p.dashCdT > 0) p.dashCdT -= dt;
+  if (p.dashT > 0) {
+    p.dashT -= dt;
+    p.moving = true;
+    p.walk += PLAYER_DASH_SPEED * dt;
+    this.moveCircle(p, p.dashDir.x * PLAYER_DASH_SPEED * dt, p.dashDir.y * PLAYER_DASH_SPEED * dt);
+  } else {
+    var v = Input.vec();
+    var moving = Math.hypot(v.x, v.y) > 0.05;
+    p.moving = moving;
+    if (moving) {
+      p.moveA = Math.atan2(v.y, v.x);
+      p.walk += p.speed * dt;
+    }
+    this.moveCircle(p, v.x * p.speed * dt, v.y * p.speed * dt);
   }
-  this.moveCircle(p, v.x * p.speed * dt, v.y * p.speed * dt);
   this.depenetrate(p);
+
+  // --- vision / fog of war ---
+  this.visT -= dt;
+  if (this.visT <= 0 || !this.visSet) {
+    this.computeVision();
+    this.visT = 0.12;
+  }
 
   // --- regen ---
   p.sinceHurt += dt;
@@ -401,32 +830,40 @@ Game.prototype.update = function (dt) {
   if (p.flash > 0) p.flash -= dt;
   if (p.muzzle > 0) p.muzzle -= dt;
 
-  // --- flow field ---
-  this.flowTimer -= dt;
-  if (this.flowTimer <= 0 || !this.flow) {
-    this.computeFlow();
-    this.flowTimer = 0.35;
+  var isGuest = !!(this.net && !this.netHost);
+
+  // --- flow field (host/solo only) ---
+  if (!isGuest) {
+    this.flowTimer -= dt;
+    if (this.flowTimer <= 0 || !this.flows) {
+      this.computeFlows();
+      this.flowTimer = 0.35;
+    }
   }
 
-  // --- wave logic ---
-  if (!this.waveActive) {
-    this.intermission -= dt;
-    if (this.intermission <= 0) this.startWave();
-  } else {
-    if (this.spawnQueue.length && this.zombies.length < 16) {
-      this.spawnTimer -= dt;
-      if (this.spawnTimer <= 0) {
-        this.spawnZombie();
-        this.spawnTimer = Math.max(0.25, 0.9 - this.wave * 0.04);
+  // --- wave logic (host/solo only; guests get synced state) ---
+  if (!isGuest) {
+    if (!this.waveActive) {
+      this.intermission -= dt;
+      if (this.intermission <= 0) this.startWave();
+    } else {
+      if (this.spawnQueue.length && this.zombies.length < 16) {
+        this.spawnTimer -= dt;
+        if (this.spawnTimer <= 0) {
+          this.spawnZombie();
+          this.spawnTimer = Math.max(0.25, 0.9 - this.wave * 0.04);
+        }
       }
-    }
-    if (!this.spawnQueue.length && !this.zombies.length) {
-      this.waveActive = false;
-      this.intermission = 5;
-      this.cb.onToast('Wave cleared! +$' + (50 + this.wave * 25) + ' bonus');
-      var bonus = Math.round((50 + this.wave * 25) * this.perks.moneyMul);
-      this.money += bonus;
-      this.moneyEarned += bonus;
+      if (!this.spawnQueue.length && !this.zombies.length) {
+        this.waveActive = false;
+        this.intermission = 5;
+        var baseBonus = 50 + this.wave * 25;
+        var bonus = Math.round(baseBonus * this.perks.moneyMul);
+        this.money += bonus;
+        this.moneyEarned += bonus;
+        this.cb.onToast('Wave cleared! +$' + bonus);
+        if (this.net) this.net.send({ t: 'wbonus', amount: baseBonus });
+      }
     }
   }
 
@@ -443,16 +880,31 @@ Game.prototype.update = function (dt) {
   }
 
   // --- zombies ---
+  var guest = !!(this.net && !this.netHost);
+  var targets = this.aliveTargets();
   for (var i = this.zombies.length - 1; i >= 0; i--) {
     var z = this.zombies[i];
     if (z.flash > 0) z.flash -= dt;
     if (z.rise > 0) { z.rise -= dt; continue; }
     z.wob += dt * 6;
 
-    var distP = Math.hypot(p.x - z.x, p.y - z.y);
+    if (guest) {
+      // host-authoritative: glide toward the latest snapshot position
+      z.x += (z.tx - z.x) * Math.min(1, dt * 12);
+      z.y += (z.ty - z.y) * Math.min(1, dt * 12);
+      continue;
+    }
+
+    // each zombie hunts the nearest living survivor
+    var tgt = null, distP = Infinity;
+    for (var ti = 0; ti < targets.length; ti++) {
+      var tdd = Math.hypot(targets[ti].x - z.x, targets[ti].y - z.y);
+      if (tdd < distP) { distP = tdd; tgt = targets[ti]; }
+    }
+    if (!tgt) continue;
     var reach = p.r + z.hitR + 3;
 
-    // --- boss dash ability ---
+    // --- boss dash ability (recharges every 2.5s) ---
     if (z.type === 'boss') {
       if (z.dashState === 'windup') {
         z.dashT -= dt;
@@ -460,8 +912,8 @@ Game.prototype.update = function (dt) {
           z.dashState = 'dash';
           z.dashT = 0.5;
           var dwd = distP || 1;
-          z.dashDir.x = (p.x - z.x) / dwd;
-          z.dashDir.y = (p.y - z.y) / dwd;
+          z.dashDir.x = (tgt.x - z.x) / dwd;
+          z.dashDir.y = (tgt.y - z.y) / dwd;
           z.dashHit = false;
         }
         continue; // rooted while telegraphing
@@ -470,21 +922,21 @@ Game.prototype.update = function (dt) {
         z.dashT -= dt;
         this.moveCircle(z, z.dashDir.x * 430 * dt, z.dashDir.y * 430 * dt);
         this.depenetrate(z);
-        var dNow = Math.hypot(p.x - z.x, p.y - z.y);
+        var dNow = Math.hypot(tgt.x - z.x, tgt.y - z.y);
         if (!z.dashHit && dNow <= reach + 4) {
           z.dashHit = true;
           z.dashT = Math.min(z.dashT, 0.08);
-          this.hurtPlayer(z.dmg * 1.4);
+          this.dealPlayerDamage(tgt, z.dmg * 1.4);
           if (this.over) return;
         }
         if (z.dashT <= 0) {
           z.dashState = null;
-          z.dashCd = 5 + Math.random() * 4;
+          z.dashCd = 2.5;
         }
         continue;
       }
       z.dashCd -= dt;
-      if (z.dashCd <= 0 && distP < 340 && distP > reach + 14 && this.hasLOS(z.x, z.y, p.x, p.y)) {
+      if (z.dashCd <= 0 && distP < 340 && distP > reach + 14 && this.hasLOS(z.x, z.y, tgt.x, tgt.y)) {
         z.dashState = 'windup';
         z.dashT = 0.65;
         SFX.roar();
@@ -499,14 +951,14 @@ Game.prototype.update = function (dt) {
       z.atkCd -= dt;
       if (z.atkCd <= 0) {
         z.atkCd = 0.85;
-        this.hurtPlayer(z.dmg);
+        this.dealPlayerDamage(tgt, z.dmg);
         if (this.over) return;
       }
     } else if (z.ghost) {
-      // ghosts drift straight at the player, through anything
+      // ghosts drift straight at their target, through anything
       var gdd = distP || 1;
-      z.x += ((p.x - z.x) / gdd) * z.speed * dt;
-      z.y += ((p.y - z.y) / gdd) * z.speed * dt;
+      z.x += ((tgt.x - z.x) / gdd) * z.speed * dt;
+      z.y += ((tgt.y - z.y) / gdd) * z.speed * dt;
     } else {
       /* Steering. A wedged zombie (corner/doorway) trips stuckT, which
          forces strict flow-field navigation through tile centers until
@@ -515,18 +967,19 @@ Game.prototype.update = function (dt) {
       var tx = Math.floor(z.x / TILE), ty = Math.floor(z.y / TILE);
       var stuck = z.stuckT > 0.35;
       var dirX = 0, dirY = 0;
+      var flow = this.flows ? this.flows[tgt.pid] : null;
 
-      if (!stuck && distP < 200 && this.hasLOS(z.x, z.y, p.x, p.y)) {
-        dirX = (p.x - z.x) / distP;
-        dirY = (p.y - z.y) / distP;
-      } else if (this.flow) {
+      if (!stuck && distP < 200 && this.hasLOS(z.x, z.y, tgt.x, tgt.y)) {
+        dirX = (tgt.x - z.x) / distP;
+        dirY = (tgt.y - z.y) / distP;
+      } else if (flow) {
         var best = -1, bx = tx, by = ty;
-        var cur = this.flow[tx + ty * this.W];
+        var cur = flow[tx + ty * this.W];
         var dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
         for (var d = 0; d < 4; d++) {
           var nx = tx + dirs[d][0], ny = ty + dirs[d][1];
           if (nx < 0 || ny < 0 || nx >= this.W || ny >= this.H) continue;
-          var f = this.flow[nx + ny * this.W];
+          var f = flow[nx + ny * this.W];
           if (f >= 0 && (best === -1 || f < best)) { best = f; bx = nx; by = ny; }
         }
         if (best >= 0 && (cur === -1 || best < cur)) {
@@ -584,15 +1037,16 @@ Game.prototype.update = function (dt) {
     }
   }
 
-  // --- auto aim + auto fire ---
+  // --- auto aim + auto fire (capped by both weapon range and vision) ---
   var w = p.weapon;
+  var effRange = Math.min(this.weaponRange(), this.vision);
   p.fireCd -= dt;
   var target = null, bestD = Infinity;
   for (var i2 = 0; i2 < this.zombies.length; i2++) {
     var z2 = this.zombies[i2];
     if (z2.rise > 0) continue;
     var dz = Math.hypot(z2.x - p.x, z2.y - p.y);
-    if (dz < bestD && dz <= w.range && this.hasLOS(p.x, p.y, z2.x, z2.y)) {
+    if (dz < bestD && dz <= effRange && this.hasLOS(p.x, p.y, z2.x, z2.y)) {
       bestD = dz; target = z2;
     }
   }
@@ -634,7 +1088,7 @@ Game.prototype.update = function (dt) {
           vx: Math.cos(ang) * w.bulletSpeed,
           vy: Math.sin(ang) * w.bulletSpeed,
           dmg: w.dmg * dmgMul,
-          left: w.range * 1.15,
+          left: this.weaponRange() * 1.15,
           pierce: w.pierce + this.perks.pierceBonus,
           color: w.color,
           hit: {}
@@ -653,7 +1107,7 @@ Game.prototype.update = function (dt) {
     bl.left -= step;
     var dead = bl.left <= 0;
 
-    if (!dead && this.isSolidTile(Math.floor(bl.x / TILE), Math.floor(bl.y / TILE))) {
+    if (!dead && this.blocksSight(Math.floor(bl.x / TILE), Math.floor(bl.y / TILE))) {
       dead = true;
       this.sparks(bl.x, bl.y);
     }
@@ -665,14 +1119,19 @@ Game.prototype.update = function (dt) {
         if (bdx * bdx + bdy * bdy <= (zb.hitR + 3) * (zb.hitR + 3)) {
           var crit = Math.random() < this.perks.critChance;
           var dealt = bl.dmg * (crit ? 2 : 1);
-          zb.hp -= dealt;
           zb.flash = 0.08;
           bl.hit[zb.id] = true;
-          this.splatter(zb.x, zb.y, ZOMBIE_TYPES[zb.type].color, crit ? 6 : 3);
-          if (zb.hp <= 0) {
-            this.killZombie(zb);
-            this.zombies.splice(zi, 1);
-            zi--;
+          if (!zb.ghost) this.splatter(zb.x, zb.y, ZOMBIE_TYPES[zb.type].color, crit ? 6 : 3);
+          if (this.net && !this.netHost) {
+            // guests report hits; the host resolves damage and deaths
+            this.net.send({ t: 'hit', zid: zb.id, dmg: Math.round(dealt) });
+          } else {
+            zb.hp -= dealt;
+            if (zb.hp <= 0) {
+              this.killZombie(zb, 'me');
+              this.zombies.splice(zi, 1);
+              zi--;
+            }
           }
           if (bl.pierce > 0) bl.pierce--;
           else { dead = true; break; }
@@ -700,6 +1159,44 @@ Game.prototype.update = function (dt) {
 
   // --- interact prompt ---
   this.updateInteract();
+
+  // --- network broadcasts ---
+  if (this.net) {
+    this.netPT -= dt;
+    if (this.netPT <= 0) {
+      this.netPT = 0.08;
+      this.net.send({
+        t: 'p',
+        x: Math.round(p.x), y: Math.round(p.y),
+        aim: +p.aim.toFixed(2),
+        hp: Math.max(0, Math.round(p.hp)), mhp: p.maxHp,
+        wk: p.weaponKey
+      });
+    }
+    if (this.netHost) {
+      this.netT -= dt;
+      if (this.netT <= 0) {
+        this.netT = 0.1;
+        var zs = [];
+        for (var zi3 = 0; zi3 < this.zombies.length; zi3++) {
+          var zz = this.zombies[zi3];
+          zs.push([
+            zz.id, ZTYPE_KEYS.indexOf(zz.type),
+            Math.round(zz.x), Math.round(zz.y),
+            Math.round((zz.hp / zz.maxHp) * 100),
+            zz.rise > 0 ? 1 : 0,
+            zz.dashState === 'windup' ? 1 : (zz.dashState === 'dash' ? 2 : 0)
+          ]);
+        }
+        this.net.send({
+          t: 'z', zs: zs,
+          wave: this.wave, wa: this.waveActive,
+          inter: +this.intermission.toFixed(1),
+          q: this.spawnQueue.length
+        });
+      }
+    }
+  }
 
   // --- camera ---
   var lerp = Math.min(1, dt * 6);
@@ -776,10 +1273,11 @@ Game.prototype.doInteract = function () {
     this.money -= t.door.cost;
     t.door.open = true;
     this.recomputeSpawners();
-    this.computeFlow();
+    if (this.netHost) this.computeFlows();
     this.buildMapLayer();
     SFX.door();
     this.cb.onToast('Area unlocked');
+    if (this.net) this.net.send({ t: 'door', letter: t.door.letter });
   } else if (t.kind === 'gun') {
     if (this.money < t.gun.price) { SFX.deny(); this.cb.onToast('Not enough money'); return; }
     this.money -= t.gun.price;
@@ -834,10 +1332,15 @@ Game.prototype.addFloat = function (x, y, text, color) {
 };
 
 Game.prototype.gameOver = function () {
+  if (this.over) return;
   this.over = true;
   SFX.gameover();
   Save.recordRun(this.map.id, this.wave);
   Save.addKills(this.kills);
+  if (this.net) {
+    this.net.send({ t: 'over' });
+    if (this.netHost) this.net.send({ t: 'end' });
+  }
   this.cb.onGameOver({
     wave: this.wave,
     kills: this.kills,
@@ -867,10 +1370,38 @@ Game.prototype.buildMapLayer = function () {
     var v = hash2(tx * 3 + 11, ty * 7 + 5);
     m.fillStyle = 'rgba(0,0,0,' + (v * 0.10).toFixed(3) + ')';
     m.fillRect(X, Y, TILE, TILE);
-    // board/tile seams
+    // material-specific seams give each map its own floor identity
     m.fillStyle = pal.floorLine;
-    m.fillRect(X, Y + TILE - 1, TILE, 1);
-    m.fillRect(X + TILE - 1, Y, 1, TILE);
+    var style = pal.floorStyle || 'tile';
+    if (style === 'wood') {
+      // long planks: every row seam, staggered vertical joints
+      m.fillRect(X, Y + TILE - 1, TILE, 1);
+      m.fillRect(X + (hash2(tx + 31, ty) < 0.5 ? 9 : 22), Y, 1, TILE);
+      m.fillStyle = 'rgba(255,220,170,0.04)';
+      m.fillRect(X, Y + 4 + ((tx * 7 + ty * 3) % 9), TILE, 1); // grain streak
+    } else if (style === 'carpet') {
+      // soft squares, no hard seams — just speckle
+      m.fillStyle = 'rgba(255,255,255,0.025)';
+      m.fillRect(X + 4, Y + 4, 2, 2);
+      m.fillRect(X + 20, Y + 12, 2, 2);
+      m.fillRect(X + 10, Y + 24, 2, 2);
+    } else if (style === 'concrete') {
+      // big poured slabs: seams only every 3rd tile, extra cracks
+      if (tx % 3 === 0) m.fillRect(X, Y, 1, TILE);
+      if (ty % 3 === 0) m.fillRect(X, Y, TILE, 1);
+      if (hash2(tx + 57, ty + 13) > 0.9) {
+        m.fillStyle = 'rgba(0,0,0,0.25)';
+        m.fillRect(X + 6, Y + 10 + (tx % 5), 14, 1);
+        m.fillRect(X + 14, Y + 11 + (tx % 5), 1, 8);
+      }
+    } else {
+      // clinical tile: clean grid + glossy corner highlight
+      m.fillRect(X, Y + TILE - 1, TILE, 1);
+      m.fillRect(X + TILE - 1, Y, 1, TILE);
+      m.fillStyle = 'rgba(255,255,255,0.05)';
+      m.fillRect(X + 2, Y + 2, 8, 1);
+      m.fillRect(X + 2, Y + 2, 1, 8);
+    }
     // occasional grime
     if (hash2(tx + 211, ty + 97) > 0.93) {
       m.fillStyle = pal.stain;
@@ -961,6 +1492,10 @@ Game.prototype.buildMapLayer = function () {
       else if (c >= 'A' && c <= 'J') {
         if (this.doors[c].open) drawOpenDoor(tx, ty);
         else drawClosedDoor(tx, ty);
+      }
+      else if (c >= 'a' && c <= 'z') {
+        drawFloor(tx, ty);
+        drawProp(m, this.map.props[c], tx * TILE, ty * TILE, tx, ty);
       }
       else drawWall(tx, ty); // '#' and gun digits
     }
@@ -1116,6 +1651,7 @@ Game.prototype.render = function () {
   for (var s = 0; s < this.spawners.length; s++) {
     var sp = this.spawners[s];
     if (!sp.active || sp.x < x0 - 1 || sp.x > x1 + 1 || sp.y < y0 - 1 || sp.y > y1 + 1) continue;
+    if (!this.tileVisible(sp.x, sp.y)) continue;
     ctx.globalAlpha = 0.10 + 0.07 * Math.sin(this.time * 3 + sp.x);
     ctx.fillStyle = '#e04545';
     ctx.beginPath();
@@ -1132,7 +1668,8 @@ Game.prototype.render = function () {
     var dr = this.doors[L];
     if (dr.open || shownDoor[L]) continue;
     var t0 = dr.tiles[0];
-    if (t0.x >= x0 - 1 && t0.x <= x1 + 1 && t0.y >= y0 - 1 && t0.y <= y1 + 1) {
+    if (t0.x >= x0 - 1 && t0.x <= x1 + 1 && t0.y >= y0 - 1 && t0.y <= y1 + 1 &&
+        (this.tileVisible(t0.x, t0.y) || this.tileVisible(t0.x, t0.y + 1))) {
       this.drawTag(ctx, (t0.x + 0.5) * TILE, t0.y * TILE - 8, '$' + dr.cost,
         this.money >= dr.cost ? '#f5c84c' : '#c9866a');
       shownDoor[L] = true;
@@ -1141,6 +1678,7 @@ Game.prototype.render = function () {
   for (var gi = 0; gi < this.guns.length; gi++) {
     var gn = this.guns[gi];
     if (gn.x < x0 - 1 || gn.x > x1 + 1 || gn.y < y0 - 1 || gn.y > y1 + 1) continue;
+    if (!this.tileVisible(gn.x, gn.y) && !this.tileVisible(gn.x, gn.y + 1)) continue;
     var afford = this.money >= gn.price;
     if (afford) {
       // soft pulse on affordable racks
@@ -1157,6 +1695,7 @@ Game.prototype.render = function () {
   for (var mi2 = 0; mi2 < this.machines.length; mi2++) {
     var mc2 = this.machines[mi2];
     if (mc2.x < x0 - 1 || mc2.x > x1 + 1 || mc2.y < y0 - 1 || mc2.y > y1 + 1) continue;
+    if (!this.tileVisible(mc2.x, mc2.y) && !this.tileVisible(mc2.x, mc2.y - 1) && !this.tileVisible(mc2.x, mc2.y + 1)) continue;
     var mcx = (mc2.x + 0.5) * TILE, mcy = (mc2.y + 0.5) * TILE;
     ctx.globalAlpha = 0.16 + 0.1 * Math.sin(this.time * 2.2);
     ctx.fillStyle = '#9a6cff';
@@ -1173,9 +1712,17 @@ Game.prototype.render = function () {
     }
   }
 
-  // --- zombies ---
+  // --- zombies (only those you can actually see) ---
   for (var zi2 = 0; zi2 < this.zombies.length; zi2++) {
-    this.drawZombie(ctx, this.zombies[zi2]);
+    var zv = this.zombies[zi2];
+    if (!this.posVisible(zv.x, zv.y)) continue;
+    this.drawZombie(ctx, zv);
+  }
+
+  // --- fellow survivors (LAN) ---
+  for (var rpid in this.remotePlayers) {
+    var rp = this.remotePlayers[rpid];
+    if (rp.hp > 0 && this.posVisible(rp.x, rp.y)) this.drawRemotePlayer(ctx, rp);
   }
 
   // --- player ---
@@ -1221,6 +1768,24 @@ Game.prototype.render = function () {
     ctx.fillText(fl.text, fl.x, fl.y);
   }
   ctx.globalAlpha = 1;
+
+  // --- fog of war: anything without line of sight fades to black ---
+  var R = this.vision;
+  for (var fy = y0; fy <= y1; fy++) {
+    for (var fx = x0; fx <= x1; fx++) {
+      var fa;
+      if (!this.tileVisible(fx, fy)) {
+        fa = 0.93;
+      } else {
+        var fd = Math.hypot((fx + 0.5) * TILE - p.x, (fy + 0.5) * TILE - p.y);
+        fa = fd <= R * 0.55 ? 0 : Math.min(0.93, ((fd - R * 0.55) / (R * 0.45)) * 0.93);
+      }
+      if (fa > 0.02) {
+        ctx.fillStyle = 'rgba(3,5,7,' + fa.toFixed(2) + ')';
+        ctx.fillRect(fx * TILE, fy * TILE, TILE, TILE);
+      }
+    }
+  }
 
   // --- lighting: a warm pool around the player, darkness at the edges ---
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -1383,6 +1948,41 @@ Game.prototype.drawZombie = function (ctx, z) {
     ctx.fillRect(z.x - bw / 2, z.y - z.hitR - 8, bw, 3);
     ctx.fillStyle = z.type === 'boss' ? '#ff4040' : '#7ddc8e';
     ctx.fillRect(z.x - bw / 2, z.y - z.hitR - 8, bw * Math.max(0, z.hp / z.maxHp), 3);
+  }
+};
+
+/* A fellow LAN survivor: simplified player body in a green jacket + name. */
+Game.prototype.drawRemotePlayer = function (ctx, rp) {
+  var r = 10;
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.beginPath(); ctx.ellipse(rp.x, rp.y + r * 0.55, r, r * 0.45, 0, 0, 6.29); ctx.fill();
+  ctx.fillStyle = '#2d5c3a';
+  ctx.beginPath(); ctx.arc(rp.x, rp.y, r + 1, 0, 6.29); ctx.fill();
+  ctx.fillStyle = '#4a9a60';
+  ctx.beginPath(); ctx.arc(rp.x, rp.y, r - 0.5, 0, 6.29); ctx.fill();
+  ctx.fillStyle = '#74c98a';
+  ctx.beginPath(); ctx.arc(rp.x - 2.5, rp.y - 3, r * 0.5, 0, 6.29); ctx.fill();
+  // gun
+  ctx.save();
+  ctx.translate(rp.x, rp.y);
+  ctx.rotate(rp.aim || 0);
+  ctx.fillStyle = '#1d2125';
+  ctx.fillRect(r * 0.3, -1.8, r + 8, 3.6);
+  ctx.restore();
+  // head
+  ctx.fillStyle = '#e3bd93';
+  ctx.beginPath(); ctx.arc(rp.x, rp.y - 1, r * 0.5, 0, 6.29); ctx.fill();
+  // name + hp sliver
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 9px sans-serif';
+  ctx.fillStyle = '#bfe8c8';
+  ctx.fillText(rp.name || 'Survivor', rp.x, rp.y - r - 10);
+  if (rp.mhp) {
+    var bw = 24;
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
+    ctx.fillRect(rp.x - bw / 2, rp.y - r - 8, bw, 3);
+    ctx.fillStyle = '#7ddc8e';
+    ctx.fillRect(rp.x - bw / 2, rp.y - r - 8, bw * Math.max(0, rp.hp / rp.mhp), 3);
   }
 };
 

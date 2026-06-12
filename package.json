@@ -1,0 +1,13 @@
+{
+  "name": "deadlight",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Top-down zombie survival with persistent skill trees and LAN co-op",
+  "scripts": {
+    "start": "node server/lan-server.js",
+    "test": "node tools/check-maps.js && node tools/smoke-test.js"
+  },
+  "dependencies": {
+    "ws": "^8.21.0"
+  }
+}
